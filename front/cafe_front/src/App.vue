@@ -1,11 +1,11 @@
-<script setup></script>
-
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
-</template>
+  <nav>
+    <RouterLink to="/">Accueil</RouterLink> |
+    <RouterLink to="/produits">Produits</RouterLink> |
+    <RouterLink to="/login">Se connecter</RouterLink> |
+    <RouterLink to="/contact">Contact</RouterLink> |
+    <RouterLink to="/info">Info</RouterLink>
+  </nav>
 
-<style scoped></style>
+  <router-view />
+</template>
