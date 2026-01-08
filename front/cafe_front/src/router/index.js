@@ -4,7 +4,6 @@ import HomeView from "../views/HomeView.vue"
 import ProduitsView from "../views/ProduitsView.vue"
 import LoginView from "../views/LoginView.vue"
 import ContactView from "../views/ContactView.vue"
-import InfoView from "../views/InfoView.vue"
 import TestApi from "../views/ProduitsView.vue"
 
 const router = createRouter({
@@ -14,7 +13,6 @@ const router = createRouter({
     { path: "/produits", name: "produits", component: ProduitsView },
     { path: "/login", name: "login", component: LoginView },
     { path: "/contact", name: "contact", component: ContactView },
-    { path: "/info", name: "info", component: InfoView },
     { path: "/test", name: "test", component: TestApi },
   ],
 })
