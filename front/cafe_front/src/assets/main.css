@@ -1,0 +1,31 @@
+.home-bg {
+  width: 100vw;
+  height: 100vh;
+  background-image: url("/images/accueil-01.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.home-content {
+  position: relative;
+  z-index: 2;
+}
+
+.navbar .nav-link,
+.navbar .navbar-brand {
+  color: white !important;
+}
+
+.navbar .nav-link:hover {
+  color: #ddd !important;
+}
+
