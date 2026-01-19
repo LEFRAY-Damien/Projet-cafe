@@ -9,6 +9,16 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use ApiPlatform\Metadata\ApiResource;
+use Symfony\Component\Serializer\Attribute\Context;
+use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
+
+#[ApiResource(
+    normalizationContext: [AbstractNormalizer::GROUPS => ['user:read']],
+    denormalizationContext: [AbstractNormalizer::GROUPS => ['user:write']],
+    forceEager: true
+)]
+
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -17,15 +27,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read']])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
     private ?string $email = null;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
     private array $roles = [];
 
     /**
@@ -35,16 +48,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $password = null;
 
     #[ORM\Column(length: 50)]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
     private ?string $nom = null;
 
     #[ORM\Column(length: 50)]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
     private ?string $prenom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
     private ?string $whatsapp = null;
 
     #[ORM\Column]
+    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
     private ?bool $isActive = null;
+
 
     /**
      * @var Collection<int, Produit>

@@ -22,6 +22,7 @@ export const useAuthStore = defineStore("auth", {
     isLoggedIn: (s) => !!s.token,
     userId: (s) => s.user?.id ?? null,
     favoris: (s) => s.user?.favoris ?? [],
+    isAdmin: (s) => s.user?.roles?.includes("ROLE_ADMIN") ?? false,
   },
 
   actions: {
@@ -41,13 +42,39 @@ export const useAuthStore = defineStore("auth", {
     async loadUser() {
       if (!this.email) return
 
-      const res = await api.get(`/api/users?email=${this.email}`)
-      const users = res.data["hydra:member"]
+      const res = await api.get(`/api/users?email=${encodeURIComponent(this.email)}`)
 
-      if (users.length > 0) {
-        this.user = users[0]
+      // API Platform peut renvoyer "hydra:member" ou "member"
+      const users = res.data["hydra:member"] ?? res.data["member"] ?? []
+
+      if (users.length === 0) {
+        this.user = null
+        return
+      }
+
+      const u = users[0]
+
+      // Si l'API renvoie une représentation minimale (juste @id),
+      // on charge le détail de l'utilisateur avec un 2e GET
+      if (u?.["@id"]) {
+        const detail = await api.get(u["@id"])
+        this.user = detail.data
+      } else {
+        this.user = u
       }
     },
+
+    async init() {
+      if (!this.token) return
+
+      const decoded = decodeJWT(this.token)
+      this.email = decoded?.username ?? null
+
+      if (this.email) {
+        await this.loadUser()
+      }
+    },
+
 
     logout() {
       this.token = null
