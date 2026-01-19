@@ -15,7 +15,7 @@ const auth = useAuthStore()
         <RouterLink class="nav-link" to="/contact">Contact</RouterLink>
 
         <!-- 🔐 ADMIN -->
-        <RouterLink v-if="auth.isLoggedIn && auth.isAdmin" class="nav-link text-warning fw-bold" to="/admin">
+        <RouterLink v-if="auth.isLoggedIn" class="nav-link" to="/admin">
           Admin
         </RouterLink>
 

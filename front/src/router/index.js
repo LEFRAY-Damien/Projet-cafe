@@ -6,6 +6,7 @@ import LoginView from "../views/LoginView.vue"
 import ContactView from "../views/ContactView.vue"
 import TestApi from "../views/ProduitsView.vue"
 import CgvView from "../views/CgvView.vue"
+import AdminView from "../views/AdminView.vue"
 import ConfidentialiteView from "../views/ConfidentialiteView.vue"
 import MentionsLegalesView from "../views/MentionsLegalesView.vue"
 
@@ -18,6 +19,7 @@ const router = createRouter({
     { path: "/contact", name: "contact", component: ContactView },
     { path: "/test", name: "test", component: TestApi },
     { path: "/cgv", component: CgvView },
+    { path: "/admin", name: "admin", component: AdminView },
     { path: "/confidentialite", component: ConfidentialiteView },
     { path: "/mentions-legales", component: MentionsLegalesView }
   ],
