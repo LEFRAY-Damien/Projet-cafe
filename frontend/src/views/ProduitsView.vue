@@ -11,10 +11,10 @@ const favorisStore = useFavorisStore();
 const panier = usePanierStore();
 
 onMounted(async () => {
-  // si token présent mais user pas encore chargé
-  if (auth.isLogged && !auth.user) await auth.loadMe();
+  await auth.init(); // recharge user si token
   await produitsStore.fetchProduits();
 });
+
 
 const produits = computed(() => produitsStore.items);
 
@@ -32,7 +32,7 @@ function firstImageUrl(p) {
   if (img.url) return img.url;
 
   // Exemple si tu stockes un chemin relatif:
-  if (img.path) return `http://localhost:8000${img.path}`;
+  if (img.path) return `http://localhost:8080${img.path}`;
 
   return null;
 }
@@ -101,7 +101,7 @@ function addToPanier(p) {
               </div>
 
               <button
-                v-if="auth.isLogged"
+                v-if="auth.isLoggedIn"
                 class="btn btn-sm"
                 :class="favorisStore.isFav(productIri(p)) ? 'btn-danger' : 'btn-outline-danger'"
                 type="button"
@@ -133,7 +133,7 @@ function addToPanier(p) {
               </button>
             </div>
 
-            <div v-if="!auth.isLogged" class="small text-muted mt-2">
+            <div v-if="!auth.isLoggedIn" class="small text-muted mt-2">
               Connecte-toi pour utiliser les favoris ❤️
             </div>
           </div>

@@ -12,15 +12,22 @@ export const useProduitsStore = defineStore("produits", {
     async fetchProduits() {
       this.loading = true;
       this.error = null;
+
       try {
         const { data } = await api.get("/api/produits");
-        // API Platform: data["hydra:member"] si Hydra activé
-        this.items = data["hydra:member"] ?? data;
+
+        // API Platform peut renvoyer "hydra:member" OU "member"
+        this.items = data["hydra:member"] ?? data["member"] ?? [];
       } catch (e) {
-        this.error = e?.message ?? "Erreur chargement produits";
+        this.items = [];
+        this.error =
+          e?.response?.data?.detail ||
+          e?.message ||
+          "Erreur chargement produits";
       } finally {
         this.loading = false;
       }
-    },
+    }
+
   },
 });
