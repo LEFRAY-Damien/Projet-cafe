@@ -14,20 +14,25 @@ export const useProduitsStore = defineStore("produits", {
       this.error = null;
 
       try {
-        const { data } = await api.get("/api/produits");
+        const res = await api.get("/api/produits", {
+          headers: { Accept: "application/ld+json" },
+        });
 
-        // API Platform peut renvoyer "hydra:member" OU "member"
-        this.items = data["hydra:member"] ?? data["member"] ?? [];
+        const data = res.data;
+
+        // supporte Hydra ET JSON-LD avec "member"
+        this.items = Array.isArray(data)
+          ? data
+          : (data["hydra:member"] ?? data.member ?? []);
       } catch (e) {
-        this.items = [];
         this.error =
+          e?.response?.data?.["hydra:description"] ||
           e?.response?.data?.detail ||
           e?.message ||
-          "Erreur chargement produits";
+          "Erreur lors du chargement des produits";
       } finally {
         this.loading = false;
       }
-    }
-
+    },
   },
 });
