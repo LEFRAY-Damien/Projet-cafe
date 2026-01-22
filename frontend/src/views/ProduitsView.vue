@@ -47,7 +47,6 @@ const {
 
           <div v-for="p in produits" :key="productIri(p)" class="flex-shrink-0 me-3" style="width: 260px;">
 
-
             <div class="card h-100 shadow-sm">
               <div class="ratio ratio-4x3 bg-light">
                 <img v-if="firstImageUrl(p)" :src="firstImageUrl(p)" class="card-img-top object-fit-cover"
