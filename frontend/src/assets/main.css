@@ -29,3 +29,6 @@
   color: #ddd !important;
 }
 
+.cardProduits {
+  max-height: 60vh;
+}
