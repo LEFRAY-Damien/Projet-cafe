@@ -7,6 +7,8 @@ import ContactView from "../views/ContactView.vue"
 import CgvView from "../views/CgvView.vue"
 import ConfidentialiteView from "../views/ConfidentialiteView.vue"
 import MentionsLegalesView from "../views/MentionsLegalesView.vue"
+import CompteView from "../views/CompteView.vue"
+import { useAuthStore } from "@/stores/auth"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,6 +17,7 @@ const router = createRouter({
     { path: "/produits", name: "produits", component: ProduitsView },
     { path: "/login", name: "login", component: LoginView },
     { path: "/contact", name: "contact", component: ContactView },
+    { path: "/compte", name: "compte", component: CompteView, meta: { requiresAuth: true } },
 
     // Si tu veux garder /test, mets une vraie page dédiée plus tard
     // { path: "/test", name: "test", component: () => import("../views/TestApiView.vue") },
@@ -37,6 +40,14 @@ const router = createRouter({
     { path: "/confidentialite", component: ConfidentialiteView },
     { path: "/mentions-legales", component: MentionsLegalesView },
   ],
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+
+  if (to.meta.requiresAuth && !auth.isLoggedIn) {
+    return { name: "login" }
+  }
 })
 
 export default router

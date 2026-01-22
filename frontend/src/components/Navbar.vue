@@ -14,15 +14,15 @@ const auth = useAuthStore()
         <RouterLink class="nav-link" to="/produits">Produits</RouterLink>
         <RouterLink class="nav-link" to="/contact">Contact</RouterLink>
 
+        <!-- ✅ COMPTE -->
+        <RouterLink v-if="auth.isLoggedIn" class="nav-link" to="/compte">
+          Compte
+        </RouterLink>
+
         <!-- 🔐 ADMIN -->
         <RouterLink v-if="auth.isLoggedIn" class="nav-link" to="/admin">
           Admin
         </RouterLink>
-
-        <span class="text-white small ms-3">
-          logged: {{ auth.isLoggedIn }} | admin: {{ auth.isAdmin }} | roles: {{ auth.user?.roles }}
-        </span>
-
 
         <RouterLink v-if="!auth.isLoggedIn" class="nav-link" to="/login">
           Se connecter

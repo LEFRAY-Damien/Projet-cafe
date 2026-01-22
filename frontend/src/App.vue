@@ -7,8 +7,9 @@ import Footer from "./components/Footer.vue"
   <div class="d-flex flex-column min-vh-100">
     <Navbar />
 
-    <main class="flex-grow-1">
-      <router-view />
+    <!-- 🔑 router-view devient un conteneur flex -->
+    <main class="flex-grow-1 d-flex flex-column">
+      <router-view class="flex-grow-1 d-flex flex-column" />
     </main>
 
     <Footer />

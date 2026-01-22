@@ -19,6 +19,7 @@ const {
     submitForm,
     toggleSort,
     categorieLabel,
+    firstImageUrl,
 } = useAdminProduitsCrud()
 
 onMounted(() => {
@@ -74,9 +75,7 @@ onMounted(() => {
                                             {{ c.nom }}
                                         </option>
                                     </select>
-                                    <div class="form-text">
-                                        (la relation ManyToOne envoie l’IRI, ex: <code>/api/categories/1</code>)
-                                    </div>
+                                    
                                 </div>
 
                                 <div class="form-check">
@@ -99,7 +98,6 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- LIST -->
                 <div class="col-12 col-lg-8">
                     <div class="card shadow-sm">
                         <div class="card-body">
@@ -112,65 +110,63 @@ onMounted(() => {
 
                             <div v-if="loading" class="text-muted mb-2">Chargement...</div>
 
-                            <div class="table-responsive">
-                                <table class="table align-middle">
-                                    <thead>
-                                        <tr>
-                                            <th role="button" @click="toggleSort('id')">
-                                                # <span class="text-muted small">{{ sortKey === "id" ? (sortDir ===
-                                                    "asc" ? "↑" : "↓") : "" }}</span>
-                                            </th>
-                                            <th role="button" @click="toggleSort('nom')">
-                                                Nom <span class="text-muted small">{{ sortKey === "nom" ? (sortDir ===
-                                                    "asc" ? "↑" : "↓") : "" }}</span>
-                                            </th>
-                                            <th>Description</th>
-                                            <th>Catégorie</th>
-                                            <th class="text-end">Prix</th>
-                                            <th class="text-center">Dispo</th>
-                                            <th class="text-end">Actions</th>
-                                        </tr>
-                                    </thead>
+                            <div v-if="!loading && filteredSortedProduits.length === 0"
+                                class="text-center text-muted py-4">
+                                Aucun produit.
+                            </div>
 
-                                    <tbody>
-                                        <tr v-for="p in filteredSortedProduits" :key="p['@id'] || p.id">
-                                            <td>{{ p.id }}</td>
-                                            <td class="fw-semibold">{{ p.nom }}</td>
-                                            <td class="text-muted" style="max-width: 260px;">
-                                                {{ p.description }}
-                                            </td>
-                                            <td>{{ categorieLabel(p) }}</td>
-                                            <td class="text-end">{{ Number(p.prix ?? 0).toFixed(2) }} €</td>
-                                            <td class="text-center">
-                                                <span class="badge"
-                                                    :class="p.disponible ? 'text-bg-success' : 'text-bg-secondary'">
-                                                    {{ p.disponible ? "Oui" : "Non" }}
-                                                </span>
-                                            </td>
-                                            <td class="text-end">
-                                                <div class="btn-group">
-                                                    <button class="btn btn-sm btn-outline-primary"
+                            <div v-else class="overflow-y-auto pe-1">
+                                <div class="d-flex flex-row flex-nowrap overflow-auto pb-2">
+                                    <div v-for="p in filteredSortedProduits" :key="p['@id'] || p.id"
+                                        class="flex-shrink-0 me-3" style="width: 260px;">
+                                        <div class="card h-100 shadow-sm">
+                                            <div class="ratio ratio-4x3 bg-light">
+                                                <img v-if="firstImageUrl(p)" :src="firstImageUrl(p)"
+                                                    class="card-img-top object-fit-cover" :alt="p.nom" />
+                                                <div v-else
+                                                    class="d-flex align-items-center justify-content-center text-muted">
+                                                    Pas d’image
+                                                </div>
+                                            </div>
+
+                                            <div class="card-body p-2 d-flex flex-column">
+                                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                                    <div class="text-start">
+                                                        <div class="fw-semibold">{{ p.nom }}</div>
+                                                        <div class="small text-muted">{{ categorieLabel(p) }}</div>
+                                                    </div>
+
+                                                    <span class="badge"
+                                                        :class="p.disponible ? 'text-bg-success' : 'text-bg-secondary'">
+                                                        {{ p.disponible ? "Oui" : "Non" }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="text-start small text-muted mt-2" style="min-height: 38px;">
+                                                    {{ p.description }}
+                                                </div>
+
+                                                <div class="mt-2 text-start fw-semibold">
+                                                    {{ Number(p.prix ?? 0).toFixed(2) }} €
+                                                </div>
+
+                                                <div class="mt-auto pt-2 d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary w-100"
                                                         @click="editProduit(p)">
                                                         Éditer
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-danger"
+                                                    <button class="btn btn-sm btn-outline-danger w-100"
                                                         @click="removeProduit(p)" :disabled="loading">
                                                         Supprimer
                                                     </button>
                                                 </div>
-                                            </td>
-                                        </tr>
-
-                                        <tr v-if="!loading && filteredSortedProduits.length === 0">
-                                            <td colspan="7" class="text-center text-muted py-4">
-                                                Aucun produit.
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="text-muted small">
+                            <div class="text-muted small mt-3">
                                 Total : <strong>{{ filteredSortedProduits.length }}</strong>
                             </div>
                         </div>

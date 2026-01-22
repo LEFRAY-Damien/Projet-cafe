@@ -42,25 +42,43 @@ export const useAuthStore = defineStore("auth", {
     async loadUser() {
       if (!this.email) return
 
-      const res = await api.get(`/api/users?email=${encodeURIComponent(this.email)}`)
+      try {
+        const res = await api.get(`/api/users?email=${encodeURIComponent(this.email)}`)
 
-      // API Platform peut renvoyer "hydra:member" ou "member"
-      const users = res.data["hydra:member"] ?? res.data["member"] ?? []
+        // API Platform peut renvoyer "hydra:member" ou "member"
+        const users = res.data["hydra:member"] ?? res.data["member"] ?? []
 
-      if (users.length === 0) {
+        if (users.length === 0) {
+          this.user = null
+          return
+        }
+
+        const u = users[0]
+
+        // Si l'API renvoie une représentation minimale (juste @id),
+        // on charge le détail de l'utilisateur avec un 2e GET
+        if (u?.["@id"]) {
+          const detail = await api.get(u["@id"])
+          this.user = detail.data
+        } else {
+          this.user = u
+        }
+      } catch (e) {
+        // ✅ IMPORTANT : ne jamais casser l'app si le user n'est pas accessible
+        const status = e?.response?.status
+
+        if (status === 401) {
+          // Token invalide/expiré ou endpoint protégé : on nettoie et on continue "déconnecté"
+          this.token = null
+          this.email = null
+          this.user = null
+          localStorage.removeItem("token")
+          return
+        }
+
+        // Autres erreurs : on n'empêche pas l'app de tourner
+        console.warn("loadUser() a échoué :", e)
         this.user = null
-        return
-      }
-
-      const u = users[0]
-
-      // Si l'API renvoie une représentation minimale (juste @id),
-      // on charge le détail de l'utilisateur avec un 2e GET
-      if (u?.["@id"]) {
-        const detail = await api.get(u["@id"])
-        this.user = detail.data
-      } else {
-        this.user = u
       }
     },
 
@@ -70,11 +88,15 @@ export const useAuthStore = defineStore("auth", {
       const decoded = decodeJWT(this.token)
       this.email = decoded?.username ?? null
 
-      if (this.email) {
+      if (!this.email) return
+
+      // ✅ On évite toute erreur non gérée au démarrage
+      try {
         await this.loadUser()
+      } catch (e) {
+        console.warn("auth.init() a échoué :", e)
       }
     },
-
 
     logout() {
       this.token = null

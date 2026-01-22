@@ -35,13 +35,11 @@ const {
         </div>
       </div>
 
-      <!-- STATES -->
       <div v-if="produitsStore.loading" class="alert alert-info">Chargement…</div>
       <div v-else-if="produitsStore.error" class="alert alert-danger">
         {{ produitsStore.error }}
       </div>
 
-      <!-- LISTE SCROLLABLE -->
       <div v-else class="overflow-y-auto pe-1 cardProduits">
         <div class="d-flex flex-row flex-nowrap overflow-auto pb-2">
 
@@ -90,7 +88,7 @@ const {
             </div>
           </div>
         </div>
-      </div> <!-- /scroll -->
+      </div> 
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from "vue"
-import axios from "axios"
+import api from "@/api/axios"
+
 
 export function useAdminProduitsCrud() {
   const produits = ref([])
@@ -13,6 +14,42 @@ export function useAdminProduitsCrud() {
   const sortDir = ref("asc")
 
   const mode = ref("create") // create | edit
+
+  const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
+
+  async function resolveImageIri(iri) {
+    if (imageUrlCache.value[iri]) return imageUrlCache.value[iri]
+
+    const { data } = await api.get(iri)
+
+    const url =
+      data.url ??
+      data.contentUrl ??
+      (data.path ? `${api.defaults.baseURL}${data.path}` : null)
+
+    imageUrlCache.value[iri] = url
+    return url
+  }
+
+  function firstImageUrl(p) {
+    const img = p.images?.[0]
+    if (!img) return null
+
+    // IRI string => on va chercher le détail
+    if (typeof img === "string") {
+      resolveImageIri(img)
+      return imageUrlCache.value[img] ?? null
+    }
+
+    // objet direct
+    if (img.url) return img.url
+    if (img.contentUrl) return img.contentUrl
+    if (img.path) return `${api.defaults.baseURL}${img.path}`
+
+    return null
+  }
+
+
   const form = reactive({
     id: null,
     iri: null,
@@ -48,21 +85,22 @@ export function useAdminProduitsCrud() {
 
   async function loadCategories() {
     try {
-      const res = await axios.get("/api/categories")
-      categories.value = res.data?.["hydra:member"] ?? res.data ?? []
+      const res = await api.get("/api/categories")
+      categories.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
     } catch (e) {
-      // on ne bloque pas la page si la liste catégories échoue,
-      // mais on affiche quand même une erreur exploitable
       setError(e)
     }
   }
 
+
   async function loadProduits() {
+    console.log("ADMIN loadProduits() appelé 🚀")
     loading.value = true
     error.value = ""
     try {
-      const res = await axios.get("/api/produits")
-      produits.value = res.data?.["hydra:member"] ?? res.data ?? []
+      const res = await api.get("/api/produits")
+      console.log("ADMIN /api/produits DATA =", res.data)
+      produits.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
     } catch (e) {
       setError(e)
     } finally {
@@ -71,15 +109,17 @@ export function useAdminProduitsCrud() {
   }
 
   async function init() {
+    console.log("ADMIN init() appelé ✅")
     loading.value = true
     error.value = ""
     try {
-      // on charge d'abord les catégories pour le select
-      await Promise.all([loadCategories(), loadProduits()])
+      await loadCategories()
+      await loadProduits()
     } finally {
       loading.value = false
     }
   }
+
 
   function editProduit(p) {
     mode.value = "edit"
@@ -102,7 +142,7 @@ export function useAdminProduitsCrud() {
     error.value = ""
     try {
       const url = p["@id"] || `/api/produits/${p.id}`
-      await axios.delete(url)
+      await api.delete(url)
       await loadProduits()
       if (mode.value === "edit" && (form.id === p.id || form.iri === p["@id"])) resetForm()
     } catch (e) {
@@ -144,11 +184,11 @@ export function useAdminProduitsCrud() {
       const payload = payloadFromForm()
 
       if (mode.value === "create") {
-        await axios.post("/api/produits", payload)
+        await api.post("/api/produits", payload)
       } else {
         // Tu as Put (pas Patch) dans ApiResource, donc on fait PUT
         const url = form.iri || `/api/produits/${form.id}`
-        await axios.put(url, payload)
+        await api.put(url, payload)
       }
 
       resetForm()
@@ -171,7 +211,7 @@ export function useAdminProduitsCrud() {
 
   const filteredSortedProduits = computed(() => {
     const q = search.value.trim().toLowerCase()
-    let arr = produits.value
+    let arr = Array.isArray(produits.value) ? produits.value : []
 
     if (q) {
       arr = arr.filter((p) => {
@@ -219,6 +259,7 @@ export function useAdminProduitsCrud() {
     filteredSortedProduits,
 
     init,
+    firstImageUrl,
     resetForm,
     editProduit,
     removeProduit,
