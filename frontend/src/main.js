@@ -10,14 +10,11 @@ import "./assets/main.css"
 
 const app = createApp(App)
 
-// 1) Créer Pinia et l'enregistrer
 const pinia = createPinia()
 app.use(pinia)
 
-// 2) Initialiser l'auth (recharge user depuis token si présent)
 const auth = useAuthStore()
 auth.init()
 
-// 3) Router + mount
 app.use(router)
 app.mount("#app")

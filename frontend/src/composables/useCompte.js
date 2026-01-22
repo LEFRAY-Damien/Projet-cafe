@@ -12,6 +12,7 @@ export function useCompte() {
   const prenom = computed(() => user.value?.prenom ?? "Non renseigné")
   const nom = computed(() => user.value?.nom ?? "Non renseigné")
   const email = computed(() => user.value?.email ?? "Non renseigné")
+  const whatsapp = computed(() => auth.user?.whatsapp || "Non renseigné")
   const roles = computed(() => user.value?.roles ?? [])
 
   return {
@@ -21,5 +22,6 @@ export function useCompte() {
     nom,
     email,
     roles,
+    whatsapp,
   }
 }
