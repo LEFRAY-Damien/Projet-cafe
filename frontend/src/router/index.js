@@ -27,6 +27,7 @@ const router = createRouter({
     {
       path: "/admin",
       component: () => import("@/views/admin/AdminLayout.vue"),
+      meta: { requiresAuth: true, requiresAdmin: true }, // ✅
       children: [
         { path: "produits", component: () => import("@/views/admin/AdminProduitsView.vue") },
         { path: "categories", component: () => import("@/views/admin/AdminCategoriesView.vue") },
@@ -37,17 +38,30 @@ const router = createRouter({
       ],
     },
 
+
     { path: "/confidentialite", component: ConfidentialiteView },
     { path: "/mentions-legales", component: MentionsLegalesView },
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
+  // 🔄 Charge le user si token présent mais user pas encore chargé
+  if (auth.token && !auth.userLoaded && !auth.loadingUser) {
+    await auth.fetchMe()
+  }
+
+  // 🔒 Auth obligatoire
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return { name: "login" }
   }
+
+  // 🔐 Admin obligatoire
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: "home" } // ou une future page 403
+  }
 })
+
 
 export default router
