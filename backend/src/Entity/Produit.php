@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -14,35 +15,45 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
 
-#[ApiResource(operations: [
-    new Get(),
-    new GetCollection(),
-    new Post(security: "is_granted('ROLE_ADMIN')"),
-    new Put(security: "is_granted('ROLE_ADMIN')"),
-    new Delete(security: "is_granted('ROLE_ADMIN')"),
-])]
+use Symfony\Component\Serializer\Annotation\Groups;
 
-
+#[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(security: "is_granted('ROLE_ADMIN')"),
+        new Put(security: "is_granted('ROLE_ADMIN')"),
+        new Delete(security: "is_granted('ROLE_ADMIN')"),
+    ],
+    normalizationContext: ['groups' => ['produit:read']],
+    denormalizationContext: ['groups' => ['produit:write']]
+)]
 #[ORM\Entity(repositoryClass: ProduitRepository::class)]
 class Produit
 {
+    #[Groups(['produit:read'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column(length: 150)]
     private ?string $nom = null;
 
+    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
+    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column]
     private ?float $prix = null;
 
+    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column]
     private ?bool $disponible = null;
 
+    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\ManyToOne(inversedBy: 'produits')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Categorie $categorie = null;
@@ -50,7 +61,8 @@ class Produit
     /**
      * @var Collection<int, Image>
      */
-    #[ORM\OneToMany(targetEntity: Image::class, mappedBy: 'produit')]
+    #[Groups(['produit:read'])]
+    #[ORM\OneToMany(mappedBy: 'produit', targetEntity: Image::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $images;
 
     /**
@@ -58,7 +70,6 @@ class Produit
      */
     #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'favoris')]
     private Collection $favoris;
-
 
     public function __construct()
     {
@@ -80,7 +91,6 @@ class Produit
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
-
         return $this;
     }
 
@@ -92,7 +102,6 @@ class Produit
     public function setDescription(string $description): static
     {
         $this->description = $description;
-
         return $this;
     }
 
@@ -104,7 +113,6 @@ class Produit
     public function setPrix(float $prix): static
     {
         $this->prix = $prix;
-
         return $this;
     }
 
@@ -116,7 +124,6 @@ class Produit
     public function setDisponible(bool $disponible): static
     {
         $this->disponible = $disponible;
-
         return $this;
     }
 
@@ -128,7 +135,6 @@ class Produit
     public function setCategorie(?Categorie $categorie): static
     {
         $this->categorie = $categorie;
-
         return $this;
     }
 
@@ -153,9 +159,12 @@ class Produit
     public function removeImage(Image $image): static
     {
         if ($this->images->removeElement($image)) {
-            // set the owning side to null (unless already changed)
+            // orphanRemoval=true + cascade remove => Doctrine supprime l'image
             if ($image->getProduit() === $this) {
-                $image->setProduit(null);
+                // nullable=false donc on évite de mettre null en base si possible
+                // mais orphanRemoval gère la suppression, donc ce set null n'est plus nécessaire
+                // On le laisse sans toucher au DB :
+                // $image->setProduit(null);
             }
         }
 

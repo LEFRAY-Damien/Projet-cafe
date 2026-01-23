@@ -6,11 +6,14 @@ const {
     categories,
     loading,
     error,
+    success,
     search,
     sortKey,
     sortDir,
     mode,
     form,
+    imagePreview,
+    canAddImageNow,
     filteredSortedProduits,
     init,
     resetForm,
@@ -20,6 +23,8 @@ const {
     toggleSort,
     categorieLabel,
     firstImageUrl,
+    addImageToCurrentProduct,
+    removeImage,
 } = useAdminProduitsCrud()
 
 onMounted(() => {
@@ -28,11 +33,9 @@ onMounted(() => {
 </script>
 
 <template>
-
     <div class="home-bg d-flex align-items-center justify-content-center text-white">
         <div class="home-overlay"></div>
         <div class="home-content container text-center">
-
             <div class="row g-3">
                 <!-- FORM -->
                 <div class="col-12 col-lg-4">
@@ -49,6 +52,10 @@ onMounted(() => {
 
                             <div v-if="error" class="alert alert-danger py-2">
                                 {{ error }}
+                            </div>
+
+                            <div v-if="success" class="alert alert-success py-2">
+                                {{ success }}
                             </div>
 
                             <form @submit.prevent="submitForm" class="vstack gap-3">
@@ -75,7 +82,6 @@ onMounted(() => {
                                             {{ c.nom }}
                                         </option>
                                     </select>
-                                    
                                 </div>
 
                                 <div class="form-check">
@@ -83,6 +89,87 @@ onMounted(() => {
                                         type="checkbox" />
                                     <label for="dispo" class="form-check-label">Disponible</label>
                                 </div>
+
+                                <!-- ✅ IMAGES -->
+                                <div class="border rounded p-2">
+                                    <div class="fw-semibold mb-2">
+                                        {{ mode === "create" ? "Image à l'ajout (optionnel)" : "Images du produit" }}
+                                    </div>
+
+                                    <!-- CREATE : juste choisir une image (pas de liste / pas de supprimer) -->
+                                    <div v-if="mode === 'create'">
+                                        <select v-model="form.imageMode" class="form-select mb-2">
+                                            <option value="url">Lien (URL)</option>
+                                            <option value="file">Fichier (upload jpg/png/gif…)</option>
+                                        </select>
+
+                                        <div v-if="form.imageMode === 'url'">
+                                            <input v-model="form.imageUrl" class="form-control mb-2" type="text"
+                                                placeholder="URL de l'image (https://... ou /uploads/...)" />
+                                        </div>
+                                        <div v-else>
+                                            <input class="form-control mb-2" type="file" accept="image/*"
+                                                @change="(e) => (form.imageFile = e.target.files?.[0] ?? null)" />
+                                        </div>
+                                    </div>
+
+                                    <!-- EDIT : vrai CRUD -->
+                                    <div v-else>
+                                        <select v-model="form.imageMode" class="form-select mb-2">
+                                            <option value="url">Lien (URL)</option>
+                                            <option value="file">Fichier (upload jpg/png/gif…)</option>
+                                        </select>
+
+                                        <div v-if="form.imageMode === 'url'">
+                                            <input v-model="form.imageUrl" class="form-control mb-2" type="text"
+                                                placeholder="URL de l'image (https://... ou /uploads/...)" />
+                                        </div>
+                                        <div v-else>
+                                            <input class="form-control mb-2" type="file" accept="image/*"
+                                                @change="(e) => (form.imageFile = e.target.files?.[0] ?? null)" />
+                                        </div>
+
+                                        <button class="btn btn-outline-primary w-100 mb-2" type="button"
+                                            @click="addImageToCurrentProduct" :disabled="loading || !canAddImageNow">
+                                            Ajouter l’image maintenant
+                                        </button>
+
+                                        <!-- Liste + supprimer uniquement en EDIT -->
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <template v-if="form.iri">
+                                                <div v-for="(img, idx) in (filteredSortedProduits.find(x => x['@id'] === form.iri)?.images ?? [])"
+                                                    :key="typeof img === 'string' ? img : img['@id']"
+                                                    class="border rounded p-1" style="width: 90px;">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span v-if="idx === 0"
+                                                            class="badge text-bg-primary">Cover</span>
+                                                        <span v-else class="badge text-bg-light text-muted"> </span>
+                                                    </div>
+
+                                                    <div class="ratio ratio-1x1 bg-light rounded overflow-hidden">
+                                                        <img v-if="firstImageUrl({ images: [img] })"
+                                                            :src="firstImageUrl({ images: [img] })"
+                                                            class="object-fit-cover w-100 h-100" alt="image" />
+                                                        <div v-else
+                                                            class="d-flex align-items-center justify-content-center text-muted small">
+                                                            —
+                                                        </div>
+                                                    </div>
+
+                                                    <button class="btn btn-sm btn-outline-danger w-100 mt-1"
+                                                        type="button" @click="removeImage(img)" :disabled="loading">
+                                                        Suppr.
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <div class="form-text mt-2">
+                                            Les images apparaissent sur la carte produit (1ère image = miniature).
+                                        </div>
+                                    </div>
+                                </div>
+
 
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-primary w-100" type="submit" :disabled="loading">
@@ -176,5 +263,4 @@ onMounted(() => {
 
         </div>
     </div>
-
 </template>

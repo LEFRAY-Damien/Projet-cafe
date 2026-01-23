@@ -12,29 +12,37 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
 
-#[ApiResource(operations: [
-    new Get(),
-    new GetCollection(),
-    new Post(security: "is_granted('ROLE_ADMIN')"),
-    new Put(security: "is_granted('ROLE_ADMIN')"),
-    new Delete(security: "is_granted('ROLE_ADMIN')"),
-])]
+use Symfony\Component\Serializer\Annotation\Groups;
 
-
+#[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(security: "is_granted('ROLE_ADMIN')"),
+        new Put(security: "is_granted('ROLE_ADMIN')"),
+        new Delete(security: "is_granted('ROLE_ADMIN')"),
+    ],
+    normalizationContext: ['groups' => ['image:read']],
+    denormalizationContext: ['groups' => ['image:write']]
+)]
 #[ORM\Entity(repositoryClass: ImageRepository::class)]
 class Image
 {
+    #[Groups(['image:read', 'produit:read'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Groups(['image:read', 'image:write', 'produit:read'])]
     #[ORM\Column(length: 255)]
     private ?string $url = null;
 
+    #[Groups(['image:read', 'image:write', 'produit:read'])]
     #[ORM\Column(length: 150, nullable: true)]
     private ?string $alt = null;
 
+    #[Groups(['image:read', 'image:write'])]
     #[ORM\ManyToOne(inversedBy: 'images')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Produit $produit = null;
@@ -52,7 +60,6 @@ class Image
     public function setUrl(string $url): static
     {
         $this->url = $url;
-
         return $this;
     }
 
@@ -64,7 +71,6 @@ class Image
     public function setAlt(?string $alt): static
     {
         $this->alt = $alt;
-
         return $this;
     }
 
@@ -76,7 +82,6 @@ class Image
     public function setProduit(?Produit $produit): static
     {
         $this->produit = $produit;
-
         return $this;
     }
 }

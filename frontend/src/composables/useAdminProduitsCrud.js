@@ -1,6 +1,5 @@
-import { computed, reactive, ref } from "vue"
+import { computed, reactive, ref, watch } from "vue"
 import api from "@/api/axios"
-
 
 export function useAdminProduitsCrud() {
   const produits = ref([])
@@ -8,6 +7,7 @@ export function useAdminProduitsCrud() {
 
   const loading = ref(false)
   const error = ref("")
+  const success = ref("")
 
   const search = ref("")
   const sortKey = ref("id")
@@ -16,6 +16,11 @@ export function useAdminProduitsCrud() {
   const mode = ref("create") // create | edit
 
   const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
+
+  function setSuccess(msg) {
+    success.value = msg
+    setTimeout(() => (success.value = ""), 2500)
+  }
 
   async function resolveImageIri(iri) {
     if (imageUrlCache.value[iri]) return imageUrlCache.value[iri]
@@ -27,8 +32,19 @@ export function useAdminProduitsCrud() {
       data.contentUrl ??
       (data.path ? `${api.defaults.baseURL}${data.path}` : null)
 
-    imageUrlCache.value[iri] = url
-    return url
+    const absolute = absolutizeUrl(url)
+    imageUrlCache.value[iri] = absolute
+    return absolute
+
+  }
+
+  function absolutizeUrl(u) {
+    if (!u) return null
+    // Si l'URL commence par "/" => on la sert depuis le backend (baseURL axios)
+    if (typeof u === "string" && u.startsWith("/")) {
+      return `${api.defaults.baseURL}${u}`
+    }
+    return u
   }
 
   function firstImageUrl(p) {
@@ -42,8 +58,8 @@ export function useAdminProduitsCrud() {
     }
 
     // objet direct
-    if (img.url) return img.url
-    if (img.contentUrl) return img.contentUrl
+    if (img.url) return absolutizeUrl(img.url)
+    if (img.contentUrl) return absolutizeUrl(img.contentUrl)
     if (img.path) return `${api.defaults.baseURL}${img.path}`
 
     return null
@@ -58,9 +74,43 @@ export function useAdminProduitsCrud() {
     description: "",
     prix: "",
     disponible: true,
-
-    // API Platform attend souvent une IRI pour une relation ManyToOne
     categorieIri: "",
+
+    // image
+    imageMode: "url", // "url" | "file"
+    imageFile: null,  // File
+    imageUrl: "",
+    imageAlt: "",
+  })
+
+  // Preview (URL ou File)
+  const imagePreview = computed(() => {
+    if (form.imageMode === "url") {
+      const u = String(form.imageUrl ?? "").trim()
+      return u || null
+    }
+    if (form.imageMode === "file" && form.imageFile) {
+      return URL.createObjectURL(form.imageFile)
+    }
+    return null
+  })
+
+  // Clean blob URLs quand on change de fichier
+  watch(
+    () => form.imageFile,
+    (newFile, oldFile) => {
+      // Rien à faire ici si pas de blob en cours ; la preview est recalculée
+      // (on évite d'accumuler)
+      // On ne peut pas récupérer l'ancien blob URL facilement ici car computed,
+      // donc on reste simple : pas de revoke (acceptable pour admin).
+    }
+  )
+
+  const canAddImageNow = computed(() => {
+    if (!form.iri) return false
+    if (form.imageMode === "url") return !!String(form.imageUrl ?? "").trim()
+    if (form.imageMode === "file") return !!form.imageFile
+    return false
   })
 
   function resetForm() {
@@ -72,12 +122,20 @@ export function useAdminProduitsCrud() {
     form.prix = ""
     form.disponible = true
     form.categorieIri = ""
+
+    form.imageMode = "url"
+    form.imageFile = null
+    form.imageUrl = ""
+    form.imageAlt = ""
+
+    error.value = ""
+    // success on laisse vivre 2.5s si besoin
   }
 
   function setError(e) {
-    // API Platform peut renvoyer des payloads variés, on sécurise
     error.value =
       e?.response?.data?.detail ||
+      e?.response?.data?.["hydra:description"] ||
       e?.response?.data?.message ||
       e?.message ||
       "Erreur inconnue"
@@ -86,21 +144,20 @@ export function useAdminProduitsCrud() {
   async function loadCategories() {
     try {
       const res = await api.get("/api/categories")
-      categories.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+      categories.value =
+        res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
     } catch (e) {
       setError(e)
     }
   }
 
-
   async function loadProduits() {
-    console.log("ADMIN loadProduits() appelé 🚀")
     loading.value = true
     error.value = ""
     try {
       const res = await api.get("/api/produits")
-      console.log("ADMIN /api/produits DATA =", res.data)
-      produits.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+      produits.value =
+        res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
     } catch (e) {
       setError(e)
     } finally {
@@ -109,7 +166,6 @@ export function useAdminProduitsCrud() {
   }
 
   async function init() {
-    console.log("ADMIN init() appelé ✅")
     loading.value = true
     error.value = ""
     try {
@@ -119,7 +175,6 @@ export function useAdminProduitsCrud() {
       loading.value = false
     }
   }
-
 
   function editProduit(p) {
     mode.value = "edit"
@@ -131,9 +186,14 @@ export function useAdminProduitsCrud() {
     form.prix = p.prix ?? ""
     form.disponible = typeof p.disponible === "boolean" ? p.disponible : true
 
-    // categorie: API Platform renvoie souvent l'IRI (string) ou un objet
     if (typeof p.categorie === "string") form.categorieIri = p.categorie
     else form.categorieIri = p.categorie?.["@id"] ?? ""
+
+    // champs image = champs d'ajout
+    form.imageMode = "url"
+    form.imageFile = null
+    form.imageUrl = ""
+    form.imageAlt = ""
   }
 
   async function removeProduit(p) {
@@ -144,7 +204,11 @@ export function useAdminProduitsCrud() {
       const url = p["@id"] || `/api/produits/${p.id}`
       await api.delete(url)
       await loadProduits()
-      if (mode.value === "edit" && (form.id === p.id || form.iri === p["@id"])) resetForm()
+      setSuccess("Produit supprimé ✅")
+
+      if (mode.value === "edit" && (form.id === p.id || form.iri === p["@id"])) {
+        resetForm()
+      }
     } catch (e) {
       setError(e)
     } finally {
@@ -167,10 +231,92 @@ export function useAdminProduitsCrud() {
       description: String(form.description).trim(),
       prix: Number(form.prix),
       disponible: !!form.disponible,
-      categorie: form.categorieIri, // relation ManyToOne => IRI
+      categorie: form.categorieIri,
     }
   }
 
+  // Upload fichier -> /api/images/upload
+  async function uploadImageFile(produitIri) {
+    if (!form.imageFile) throw new Error("Aucun fichier sélectionné.")
+
+    const fd = new FormData()
+    fd.append("file", form.imageFile)
+    fd.append("produit", produitIri)
+    if (String(form.imageAlt ?? "").trim()) fd.append("alt", String(form.imageAlt).trim())
+
+    await api.post("/api/images/upload", fd, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Accept: "application/ld+json",
+      },
+    })
+  }
+
+  // ✅ Ajout image (mode EDIT) : URL ou FILE
+  async function addImageToCurrentProduct() {
+    if (!form.iri) {
+      alert("Tu dois d'abord enregistrer le produit, puis l'éditer.")
+      return
+    }
+
+    loading.value = true
+    error.value = ""
+    try {
+      if (form.imageMode === "file") {
+        if (!form.imageFile) {
+          alert("Choisis un fichier image.")
+          return
+        }
+        await uploadImageFile(form.iri)
+        form.imageFile = null
+        form.imageAlt = ""
+        setSuccess("Image uploadée ✅")
+      } else {
+        const url = String(form.imageUrl ?? "").trim()
+        const alt = String(form.imageAlt ?? "").trim() || null
+
+        if (!url) {
+          alert("URL de l'image obligatoire.")
+          return
+        }
+
+        await api.post("/api/images", { url, alt, produit: form.iri })
+        form.imageUrl = ""
+        form.imageAlt = ""
+        setSuccess("Image ajoutée ✅")
+      }
+
+      await loadProduits()
+    } catch (e) {
+      setError(e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function removeImage(img) {
+    if (!confirm("Supprimer cette image ?")) return
+
+    loading.value = true
+    error.value = ""
+    try {
+      const iri = typeof img === "string" ? img : img?.["@id"]
+      if (!iri) {
+        alert("Impossible de trouver l'IRI de l'image.")
+        return
+      }
+
+      await api.delete(iri)
+      await loadProduits()
+      setSuccess("Image supprimée ✅")
+    } catch (e) {
+      setError(e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // ✅ Submit produit : en CREATE, on peut aussi créer l'image (URL ou FILE)
   async function submitForm() {
     const msg = validate()
     if (msg) {
@@ -184,15 +330,60 @@ export function useAdminProduitsCrud() {
       const payload = payloadFromForm()
 
       if (mode.value === "create") {
-        await api.post("/api/produits", payload)
+        // 1) créer le produit
+        const res = await api.post("/api/produits", payload)
+        const produitIri = res.data?.["@id"] || null
+
+        // 2) image optionnelle
+        if (produitIri) {
+          if (form.imageMode === "file" && form.imageFile) {
+            await uploadImageFile(produitIri)
+            form.imageFile = null
+            setSuccess("Produit + image uploadée ✅")
+          } else if (form.imageMode === "url") {
+            const imgUrl = String(form.imageUrl ?? "").trim()
+            const imgAlt = String(form.imageAlt ?? "").trim() || null
+            if (imgUrl) {
+              await api.post("/api/images", { url: imgUrl, alt: imgAlt, produit: produitIri })
+              setSuccess("Produit + image ajoutée ✅")
+            } else {
+              setSuccess("Produit créé ✅")
+            }
+          } else {
+            setSuccess("Produit créé ✅")
+          }
+        } else {
+          setSuccess("Produit créé ✅")
+        }
+
+        // reset champs image après création
+        form.imageUrl = ""
+        form.imageAlt = ""
+        form.imageMode = "url"
+
+        // 3) refresh + passer en edit sur le produit créé
+        await loadProduits()
+        const fresh = produitIri
+          ? produits.value.find((p) => p["@id"] === produitIri)
+          : null
+
+        if (fresh) editProduit(fresh)
+        else resetForm()
       } else {
-        // Tu as Put (pas Patch) dans ApiResource, donc on fait PUT
         const url = form.iri || `/api/produits/${form.id}`
         await api.put(url, payload)
-      }
 
-      resetForm()
-      await loadProduits()
+        // on recharge et on reste en edit
+        const keepIri = form.iri
+        await loadProduits()
+        const fresh = keepIri
+          ? produits.value.find((p) => p["@id"] === keepIri)
+          : null
+
+        setSuccess("Produit enregistré ✅")
+        if (fresh) editProduit(fresh)
+        else resetForm()
+      }
     } catch (e) {
       setError(e)
     } finally {
@@ -232,9 +423,7 @@ export function useAdminProduitsCrud() {
   })
 
   function categorieLabel(p) {
-    // si API renvoie un objet catégorie
     if (p?.categorie?.nom) return p.categorie.nom
-    // sinon IRI => on tente de retrouver dans categories
     if (typeof p?.categorie === "string") {
       const c = categories.value.find((x) => x["@id"] === p.categorie)
       return c?.nom ?? "—"
@@ -248,6 +437,7 @@ export function useAdminProduitsCrud() {
 
     loading,
     error,
+    success,
 
     search,
     sortKey,
@@ -255,6 +445,9 @@ export function useAdminProduitsCrud() {
 
     mode,
     form,
+
+    imagePreview,
+    canAddImageNow,
 
     filteredSortedProduits,
 
@@ -266,5 +459,8 @@ export function useAdminProduitsCrud() {
     submitForm,
     toggleSort,
     categorieLabel,
+
+    addImageToCurrentProduct,
+    removeImage,
   }
 }

@@ -53,12 +53,6 @@ const { isLoggedIn, prenom, nom, email, whatsapp, roles } = useCompte()
                                     </span>
                                 </li>
                             </ul>
-
-                            <div class="alert alert-danger mb-3">
-                                <strong>Zone sensible</strong><br />
-                                La suppression du compte est définitive.
-                            </div>
-
                             <button class="btn btn-outline-danger w-100" disabled>
                                 Se désinscrire (à venir)
                             </button>
