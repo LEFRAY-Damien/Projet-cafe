@@ -25,7 +25,7 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 # Copier le code source
-COPY front/ .
+COPY frontend/ .
 
 # Argument de build pour l'API URL (pour la prod)
 ARG VITE_API_BASE_URL=http://localhost:8080
