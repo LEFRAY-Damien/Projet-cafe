@@ -120,3 +120,18 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# Variables d'environnement
+.env
+.env.local
+.env.*.local
+
+# Clés JWT
+backend/config/jwt/*.pem
+
+# Dépendances
+backend/vendor/
+frontend/node_modules/
+
+# Cache et logs
+backend/var/
