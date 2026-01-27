@@ -1,9 +1,8 @@
 import { computed, reactive, ref } from "vue"
-import axios from "axios"
+import api from "@/api/axios"
 
 export function useAdminCategoriesCrud() {
   const categories = ref([])
-
   const loading = ref(false)
   const error = ref("")
 
@@ -11,7 +10,7 @@ export function useAdminCategoriesCrud() {
   const sortKey = ref("id")
   const sortDir = ref("asc")
 
-  const mode = ref("create") // create | edit
+  const mode = ref("create")
   const form = reactive({
     id: null,
     iri: null,
@@ -27,6 +26,7 @@ export function useAdminCategoriesCrud() {
 
   function setError(e) {
     error.value =
+      e?.response?.data?.["hydra:description"] ||
       e?.response?.data?.detail ||
       e?.response?.data?.message ||
       e?.message ||
@@ -37,8 +37,11 @@ export function useAdminCategoriesCrud() {
     loading.value = true
     error.value = ""
     try {
-      const res = await axios.get("/api/categories")
-      categories.value = res.data?.["hydra:member"] ?? res.data ?? []
+      const res = await api.get("/api/categories")
+      const data = res.data
+      categories.value = Array.isArray(data) ? data : (data?.member ?? data?.["hydra:member"] ?? [])
+
+
     } catch (e) {
       setError(e)
     } finally {
@@ -59,7 +62,7 @@ export function useAdminCategoriesCrud() {
     error.value = ""
     try {
       const url = c["@id"] || `/api/categories/${c.id}`
-      await axios.delete(url)
+      await api.delete(url)
       await loadCategories()
       if (mode.value === "edit" && (form.id === c.id || form.iri === c["@id"])) resetForm()
     } catch (e) {
@@ -76,10 +79,7 @@ export function useAdminCategoriesCrud() {
 
   async function submitForm() {
     const msg = validate()
-    if (msg) {
-      alert(msg)
-      return
-    }
+    if (msg) return alert(msg)
 
     loading.value = true
     error.value = ""
@@ -87,10 +87,10 @@ export function useAdminCategoriesCrud() {
       const payload = { nom: String(form.nom).trim() }
 
       if (mode.value === "create") {
-        await axios.post("/api/categories", payload)
+        await api.post("/api/categories", payload)
       } else {
         const url = form.iri || `/api/categories/${form.id}`
-        await axios.put(url, payload) // tu as Put dans ApiResource
+        await api.put(url, payload)
       }
 
       resetForm()
@@ -113,7 +113,8 @@ export function useAdminCategoriesCrud() {
 
   const filteredSortedCategories = computed(() => {
     const q = search.value.trim().toLowerCase()
-    let arr = categories.value
+    let arr = Array.isArray(categories.value) ? categories.value : []
+
 
     if (q) {
       arr = arr.filter((c) => String(c.nom ?? "").toLowerCase().includes(q))

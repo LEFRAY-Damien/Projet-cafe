@@ -68,9 +68,6 @@ onMounted(() => {
                             </form>
 
                             <hr />
-                            <div class="text-muted small">
-                                API : <code>/api/categories</code> (GET/POST/PUT/DELETE)
-                            </div>
                         </div>
                     </div>
                 </div>
