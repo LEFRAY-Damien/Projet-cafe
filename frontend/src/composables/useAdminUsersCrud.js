@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from "vue"
-import axios from "axios"
+import api from "@/api/axios"
 
 export function useAdminUsersCrud() {
   const users = ref([])
@@ -50,14 +50,23 @@ export function useAdminUsersCrud() {
     loading.value = true
     error.value = ""
     try {
-      const res = await axios.get("/api/users")
-      users.value = res.data?.["hydra:member"] ?? res.data ?? []
+      const res = await api.get("/api/users")
+      const data = res.data
+
+      users.value = Array.isArray(data)
+        ? data
+        : (data?.member ?? data?.["hydra:member"] ?? [])
+
+      console.log("DEBUG users.value =", users.value)
+      console.log("DEBUG first user =", users.value?.[0])
+      console.log("DEBUG keys =", Object.keys(users.value?.[0] || {}))
     } catch (e) {
       setError(e)
     } finally {
       loading.value = false
     }
   }
+
 
   function editUser(u) {
     mode.value = "edit"
@@ -116,11 +125,13 @@ export function useAdminUsersCrud() {
 
       const url = form.iri || `/api/users/${form.id}`
       // PUT: remplace les champs (sans password)
-      await axios.put(url, payload)
+      await api.put(url, payload)
+
 
       resetForm()
       await loadUsers()
     } catch (e) {
+      console.error("SUBMIT ERROR:", e?.response?.status, e?.response?.data || e)
       setError(e)
     } finally {
       loading.value = false
@@ -130,22 +141,44 @@ export function useAdminUsersCrud() {
   async function toggleActive(u) {
     loading.value = true
     error.value = ""
+
+    const url = u["@id"] || `/api/users/${u.id}`
+    console.log("TOGGLE URL:", url, "current:", u.isActive, "next:", !u.isActive)
+
     try {
-      const url = u["@id"] || `/api/users/${u.id}`
-      // PATCH merge-patch si dispo ; sinon on fera PUT plus tard.
-      await axios.patch(
-        url,
-        { isActive: !u.isActive },
-        { headers: { "Content-Type": "application/merge-patch+json" } }
-      )
+      // 1) tentative PATCH merge-patch
+      try {
+        await api.patch(
+          url,
+          { isActive: !u.isActive },
+          { headers: { "Content-Type": "application/merge-patch+json" } }
+        )
+      } catch (e) {
+        console.warn("PATCH failed:", e?.response?.status, e?.response?.data || e)
+
+        // fallback PUT
+        const payload = {
+          email: u.email ?? "",
+          nom: u.nom ?? "",
+          prenom: u.prenom ?? "",
+          whatsapp: u.whatsapp ?? null,
+          isActive: !u.isActive,
+          roles: Array.isArray(u.roles) ? u.roles : ["ROLE_USER"],
+        }
+
+        await api.put(url, payload)
+      }
+
       await loadUsers()
     } catch (e) {
-      // si PATCH n’est pas activé chez toi, on verra après : on peut basculer en PUT.
+      console.error("TOGGLE ERROR:", e?.response?.status, e?.response?.data || e)
       setError(e)
     } finally {
       loading.value = false
     }
   }
+
+
 
   function toggleSort(key) {
     if (sortKey.value === key) {
@@ -158,7 +191,8 @@ export function useAdminUsersCrud() {
 
   const filteredSortedUsers = computed(() => {
     const q = search.value.trim().toLowerCase()
-    let arr = users.value
+    let arr = Array.isArray(users.value) ? users.value : []
+
 
     if (q) {
       arr = arr.filter((u) => {
