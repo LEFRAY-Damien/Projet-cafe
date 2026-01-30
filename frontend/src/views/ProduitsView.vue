@@ -32,7 +32,12 @@ const {
           <div class="fw-semibold">
             {{ panier.count }} item(s) • {{ formatPrice(panier.total) }} €
           </div>
+
+          <RouterLink v-if="auth.isLoggedIn && panier.count > 0" to="/panier" class="btn btn-sm btn-outline-light mt-2">
+            Voir le panier
+          </RouterLink>
         </div>
+
       </div>
 
       <div v-if="produitsStore.loading" class="alert alert-info">Chargement…</div>
@@ -76,19 +81,21 @@ const {
                 </div>
 
                 <div class="mt-auto pt-2 d-flex gap-2">
-                  <button class="btn btn-primary w-100" type="button" :disabled="!p.disponible" @click="addToPanier(p)">
+                  <button v-if="auth.isLoggedIn" class="btn btn-primary w-100" type="button" :disabled="!p.disponible"
+                    @click="addToPanier(p)">
                     Ajouter au panier
                   </button>
+
                 </div>
 
                 <div v-if="!auth.isLoggedIn" class="small text-muted mt-2">
-                  Connecte-toi pour utiliser les favoris ❤️
+                  Connecte-toi pour utiliser les favoris ❤️ et le panier 🛒 !
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div> 
+      </div>
     </div>
   </div>
 </template>
