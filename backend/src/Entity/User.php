@@ -2,6 +2,10 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Put;
+use ApiPlatform\Metadata\Patch;
 use App\Repository\UserRepository;
 use App\Entity\Commande;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -10,15 +14,20 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use ApiPlatform\Metadata\ApiResource;
-use Symfony\Component\Serializer\Attribute\Context;
-use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
+use Symfony\Component\Serializer\Attribute\Groups;
+
 
 #[ApiResource(
-    normalizationContext: [AbstractNormalizer::GROUPS => ['user:read']],
-    denormalizationContext: [AbstractNormalizer::GROUPS => ['user:write']],
+    operations: [
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
+        new Put(security: "is_granted('ROLE_ADMIN')"),
+        new Patch(security: "is_granted('ROLE_ADMIN')")
+    ],
+    normalizationContext: ['groups' => ['user:read']],
+    denormalizationContext: ['groups' => ['user:write']],
     forceEager: true
 )]
-
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -27,18 +36,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read']])]
+    #[Groups(['user:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $email = null;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
+    #[Groups(['user:read', 'user:write'])]
     private array $roles = [];
 
     /**
@@ -48,26 +57,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $password = null;
 
     #[ORM\Column(length: 50)]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $nom = null;
 
     #[ORM\Column(length: 50)]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $prenom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
+    #[Groups(['user:read', 'user:write'])]
     private ?string $whatsapp = null;
 
-    #[ORM\Column]
-    #[Context([AbstractNormalizer::GROUPS => ['user:read', 'user:write']])]
-    private ?bool $isActive = null;
-
+    #[ORM\Column(options: ["default" => true])]
+    #[Groups(['user:read', 'user:write'])]
+    private bool $isActive = true;
 
     /**
      * @var Collection<int, Produit>
      */
     #[ORM\ManyToMany(targetEntity: Produit::class, inversedBy: 'favoris')]
+    #[Groups(['user:read'])]
     private Collection $favoris;
 
     /**
@@ -76,14 +85,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Commande::class)]
     private Collection $commandes;
 
-
     public function __construct()
     {
         $this->isActive = true;
         $this->favoris = new ArrayCollection();
         $this->commandes = new ArrayCollection();
     }
-
 
     public function getId(): ?int
     {
@@ -198,11 +205,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setWhatsapp(?string $whatsapp): static
     {
         $this->whatsapp = $whatsapp;
-
         return $this;
     }
 
-    public function isActive(): ?bool
+    public function getIsActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function isActive(): bool
     {
         return $this->isActive;
     }
@@ -210,9 +221,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
-
         return $this;
     }
+
 
     /**
      * @return Collection<int, Produit>
@@ -231,7 +242,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
-
 
     public function removeFavori(Produit $favori): static
     {

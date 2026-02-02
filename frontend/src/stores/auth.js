@@ -14,7 +14,7 @@ function decodeJWT(token) {
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: localStorage.getItem("token") || null,
-    email: null, // plus nécessaire avec /api/me (tu pourras supprimer)
+    email: null,
     user: null,
 
     loadingUser: false,
@@ -25,7 +25,21 @@ export const useAuthStore = defineStore("auth", {
     isLoggedIn: (s) => !!s.token,
     userId: (s) => s.user?.id ?? null,
     favoris: (s) => s.user?.favoris ?? [],
-    isAdmin: (s) => s.user?.roles?.includes("ROLE_ADMIN") ?? false,
+    isAdmin: (s) => {
+      // 1) si user chargé, on utilise ses rôles
+      if (s.user?.roles?.includes("ROLE_ADMIN")) return true
+
+      // 2) sinon fallback sur le token (souvent contient roles)
+      if (!s.token) return false
+      try {
+        const payload = JSON.parse(atob(s.token.split(".")[1]))
+        const roles = Array.isArray(payload?.roles) ? payload.roles : []
+        return roles.includes("ROLE_ADMIN")
+      } catch {
+        return false
+      }
+    },
+
   },
 
   actions: {
@@ -34,11 +48,9 @@ export const useAuthStore = defineStore("auth", {
       this.token = res.data.token
       localStorage.setItem("token", this.token)
 
-      // optionnel : tu peux garder, mais non requis
       const decoded = decodeJWT(this.token)
       this.email = decoded?.username ?? email
 
-      // ✅ charge le profil via /api/me
       await this.fetchMe(true)
     },
 
@@ -52,20 +64,29 @@ export const useAuthStore = defineStore("auth", {
       if (!force && (this.loadingUser || this.userLoaded)) return
 
       this.loadingUser = true
+
       try {
+        // 🔐 sécurité : récupérer l’email depuis le token si absent (refresh page)
+        if (!this.email && this.token) {
+          const decoded = decodeJWT(this.token)
+          this.email = decoded?.username ?? null
+        }
+
         const res = await api.get("/api/me")
         this.user = res.data
         this.userLoaded = true
+
       } catch (e) {
         const status = e?.response?.status
-        if (status === 401) {
-          this.token = null
-          this.email = null
+
+        // ⚠️ on NE SUPPRIME PAS le token ici
+        if (status === 401 || status === 403) {
+          console.warn("fetchMe() non autorisé : profil non récupérable via /api/users.")
           this.user = null
           this.userLoaded = false
-          localStorage.removeItem("token")
           return
         }
+
         console.warn("fetchMe() a échoué :", e)
         this.user = null
         this.userLoaded = false
