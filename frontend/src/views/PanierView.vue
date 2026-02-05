@@ -12,7 +12,12 @@ const {
   setQty,
   removeItem,
   clearPanier,
+  checkout,
+  loading,
+  error,
+  success,
 } = usePanierCarte();
+
 </script>
 
 <template>
@@ -53,6 +58,9 @@ const {
           <RouterLink to="/produits" class="alert-link ms-1">Voir les produits</RouterLink>
         </div>
 
+
+
+
         <!-- PANIER REMPLI -->
         <div v-else class="card shadow-sm text-dark">
           <div class="card-body p-0">
@@ -80,15 +88,8 @@ const {
                           -
                         </button>
 
-                        <input
-                          class="form-control form-control-sm text-center"
-                          style="width: 80px;"
-                          type="number"
-                          min="1"
-                          :value="i.qty"
-                          @change="setQty(i, $event.target.value)"
-
-                        />
+                        <input class="form-control form-control-sm text-center" style="width: 80px;" type="number"
+                          min="1" :value="i.qty" @change="setQty(i, $event.target.value)" />
 
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="inc(i)">
                           +
@@ -120,15 +121,24 @@ const {
           </div>
 
           <div class="card-footer d-flex justify-content-between align-items-center">
-            <button class="btn btn-outline-danger" type="button" @click="clearPanier">
+            <button class="btn btn-outline-danger" type="button" @click="clearPanier" :disabled="loading">
               Vider le panier
             </button>
 
-            <!-- On branchera la commande plus tard -->
-            <button class="btn btn-primary" type="button" disabled>
-              Commander (bientôt)
+            <button class="btn btn-primary" type="button" @click="checkout" :disabled="loading">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+              Valider la commande
             </button>
           </div>
+
+          <div v-if="error" class="alert alert-danger mt-3">
+            {{ error }}
+          </div>
+
+          <div v-if="success" class="alert alert-success mt-3">
+            ✅ Commande envoyée au serveur !
+          </div>
+
         </div>
       </template>
     </div>
