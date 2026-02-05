@@ -116,7 +116,7 @@ onMounted(() => loadUsers())
                       {{ u.prenom }} {{ u.nom }}
                     </div>
                     <div class="small text-muted">
-                      {{ u.email }} • {{ rolesLabel(u) }}
+                     Adresse mail: {{ u.email }} <br> Role: {{ rolesLabel(u) }}
                     </div>
                     <div class="small">
                       Actif :

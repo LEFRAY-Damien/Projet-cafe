@@ -29,6 +29,17 @@ export const usePanierStore = defineStore("panier", {
       this.persist();
     },
 
+    setQty(productIri, qty) {
+      const n = Math.max(1, Math.floor(Number(qty)));
+      if (!Number.isFinite(n)) return;
+
+      const existing = this.items.find((i) => i.productIri === productIri);
+      if (!existing) return;
+
+      existing.qty = n;
+      this.persist();
+    },
+
     remove(productIri) {
       this.items = this.items.filter((i) => i.productIri !== productIri);
       this.persist();

@@ -86,7 +86,8 @@ const {
                           type="number"
                           min="1"
                           :value="i.qty"
-                          @input="setQty(i, $event.target.value)"
+                          @change="setQty(i, $event.target.value)"
+
                         />
 
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="inc(i)">
