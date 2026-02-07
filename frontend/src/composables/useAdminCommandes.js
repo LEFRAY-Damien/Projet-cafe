@@ -1,5 +1,7 @@
 import { computed, ref } from "vue"
 import api from "@/api/axios"
+import axios from "axios"
+
 
 export function useAdminCommandes() {
   const commandes = ref([])
@@ -31,9 +33,18 @@ export function useAdminCommandes() {
   async function loadCommandes() {
     loading.value = true
     error.value = ""
+
     try {
-      const res = await api.get("/admin/commandes")
-      commandes.value = res.data?.["hydra:member"] ?? res.data ?? []
+      const token = localStorage.getItem("token")
+
+      const res = await api.get("http://localhost:8000/api/admin/commandes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      commandes.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+
     } catch (e) {
       setError(e)
     } finally {
@@ -41,21 +52,35 @@ export function useAdminCommandes() {
     }
   }
 
+
   async function openDetails(cmd) {
     detailsLoading.value = true
     detailsError.value = ""
     selected.value = null
+
     try {
-      const url = cmd?.["@id"] || (cmd?.id ? `/api/commandes/${cmd.id}` : null)
-      if (!url) throw new Error("Commande invalide (pas d'@id / id).")
-      const res = await api.get(url)
-      selected.value = res.data
+      if (cmd?.["@id"]) {
+        // @id = /api/admin/commandes/5 → appel direct
+        const res = await axios.get(cmd["@id"], {
+          headers: {
+            Authorization: api.defaults.headers.common.Authorization,
+          },
+        })
+        selected.value = res.data
+      } else if (cmd?.id) {
+        // fallback
+        const res = await api.get(`/admin/commandes/${cmd.id}`)
+        selected.value = res.data
+      } else {
+        throw new Error("Commande invalide")
+      }
     } catch (e) {
       setDetailsError(e)
     } finally {
       detailsLoading.value = false
     }
   }
+
 
   function closeDetails() {
     selected.value = null
