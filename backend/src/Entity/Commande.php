@@ -17,6 +17,21 @@ use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ApiResource(
     operations: [
+        // ✅ ADMIN: liste de toutes les commandes
+        new GetCollection(
+            uriTemplate: '/admin/commandes',
+            security: "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['admin:commande:read']]
+        ),
+
+        // ✅ ADMIN: détail d’une commande
+        new Get(
+            uriTemplate: '/admin/commandes/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['admin:commande:read']]
+        ),
+
+        // USER
         new Get(security: "object.getUser() == user or is_granted('ROLE_ADMIN')"),
         new GetCollection(security: "is_granted('ROLE_USER')"),
         new Post(
@@ -24,29 +39,27 @@ use Symfony\Component\Serializer\Annotation\Groups;
             output: false
         ),
     ],
-    normalizationContext: ['groups' => ['commande:read']],
     denormalizationContext: ['groups' => ['commande:write']],
     processor: CommandeProcessor::class
 )]
-#[ORM\Entity(repositoryClass: CommandeRepository::class)]
 class Commande
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['commande:read'])]
+    #[Groups(['commande:read', 'admin:commande:read'])]
     private ?int $id = null;
 
     #[ORM\Column]
-    #[Groups(['commande:read'])]
+    #[Groups(['commande:read', 'admin:commande:read'])]
     private ?\DateTimeImmutable $dateCommande = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
-    #[Groups(['commande:read', 'commande:write'])]
+    #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]
     private ?\DateTime $dateRetrait = null;
 
     #[ORM\Column(length: 30)]
-    #[Groups(['commande:read'])]
+    #[Groups(['commande:read', 'admin:commande:read'])]
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'commandes')]
@@ -55,89 +68,6 @@ class Commande
     private ?User $user = null;
 
     #[ORM\OneToMany(mappedBy: 'commande', targetEntity: CommandeLigne::class, cascade: ['persist'], orphanRemoval: true)]
-    #[Groups(['commande:read', 'commande:write'])]
+    #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]
     private Collection $lignes;
-
-    public function __construct()
-    {
-        $this->lignes = new ArrayCollection();
-        $this->dateCommande = new \DateTimeImmutable();
-        $this->statut = 'en_attente';
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getDateCommande(): ?\DateTimeImmutable
-    {
-        return $this->dateCommande;
-    }
-
-    public function setDateCommande(\DateTimeImmutable $dateCommande): static
-    {
-        $this->dateCommande = $dateCommande;
-        return $this;
-    }
-
-    public function getDateRetrait(): ?\DateTime
-    {
-        return $this->dateRetrait;
-    }
-
-    public function setDateRetrait(?\DateTime $dateRetrait): static
-    {
-        $this->dateRetrait = $dateRetrait;
-        return $this;
-    }
-
-    public function getStatut(): ?string
-    {
-        return $this->statut;
-    }
-
-    public function setStatut(string $statut): static
-    {
-        $this->statut = $statut;
-        return $this;
-    }
-
-    public function getUser(): ?User
-    {
-        return $this->user;
-    }
-
-    public function setUser(?User $user): static
-    {
-        $this->user = $user;
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, CommandeLigne>
-     */
-    public function getLignes(): Collection
-    {
-        return $this->lignes;
-    }
-
-    public function addLigne(CommandeLigne $ligne): static
-    {
-        if (!$this->lignes->contains($ligne)) {
-            $this->lignes->add($ligne);
-            $ligne->setCommande($this);
-        }
-        return $this;
-    }
-
-    public function removeLigne(CommandeLigne $ligne): static
-    {
-        if ($this->lignes->removeElement($ligne)) {
-            if ($ligne->getCommande() === $this) {
-                $ligne->setCommande(null);
-            }
-        }
-        return $this;
-    }
 }

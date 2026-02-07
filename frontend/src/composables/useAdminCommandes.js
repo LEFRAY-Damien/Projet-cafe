@@ -1,5 +1,5 @@
 import { computed, ref } from "vue"
-import axios from "axios"
+import api from "@/api/axios"
 
 export function useAdminCommandes() {
   const commandes = ref([])
@@ -32,7 +32,7 @@ export function useAdminCommandes() {
     loading.value = true
     error.value = ""
     try {
-      const res = await axios.get("/api/commandes")
+      const res = await api.get("/admin/commandes")
       commandes.value = res.data?.["hydra:member"] ?? res.data ?? []
     } catch (e) {
       setError(e)
@@ -48,7 +48,7 @@ export function useAdminCommandes() {
     try {
       const url = cmd?.["@id"] || (cmd?.id ? `/api/commandes/${cmd.id}` : null)
       if (!url) throw new Error("Commande invalide (pas d'@id / id).")
-      const res = await axios.get(url)
+      const res = await api.get(url)
       selected.value = res.data
     } catch (e) {
       setDetailsError(e)
