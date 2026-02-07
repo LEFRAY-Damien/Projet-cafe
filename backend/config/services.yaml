@@ -26,4 +26,4 @@ services:
 
     App\State\CommandeProcessor:
         arguments:
-            $writeProcessor: '@api_platform.state_processor.write'
+            $writeProcessor: '@api_platform.doctrine.orm.state.persist_processor'
