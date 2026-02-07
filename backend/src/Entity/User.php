@@ -26,7 +26,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     ],
     normalizationContext: ['groups' => ['user:read']],
     denormalizationContext: ['groups' => ['user:write']],
-    forceEager: true
+    forceEager: false
 )]
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]

@@ -56,7 +56,6 @@ export function usePanierCarte() {
 
     loading.value = true;
     try {
-      // ⚠️ Payload “générique” (à adapter aux noms exacts de ton API)
       const payload = {
         lignes: items.value.map((i) => ({
           produit: i.productIri,
@@ -65,22 +64,42 @@ export function usePanierCarte() {
         })),
       };
 
+      // ✅ GARDE-FOU : évite d’envoyer un produit invalide
+      for (const i of items.value) {
+        if (!i.productIri || !i.productIri.startsWith("/api/produits/")) {
+          error.value = "Produit invalide dans le panier (vide le panier et réessaie).";
+          loading.value = false;
+          return;
+        }
+      }
+
       const res = await api.post("/api/commandes", payload);
 
-      // option : garder l’iri/id si l’API renvoie "@id"
       const iri = res.data?.["@id"] || null;
       if (iri && panier.markSent) panier.markSent(iri);
 
       success.value = true;
-      panier.clear(); // on vide le panier après validation
+      panier.clear();
     } catch (e) {
-      console.error(e);
-      // message simple, et tu regardes le détail dans Network/console
-      error.value = "Erreur API: impossible de valider la commande (voir console).";
-    } finally {
+      console.error("CHECKOUT ERROR", e);
+
+      // Si le serveur a répondu (400/401/500...), axios met ça dans e.response
+      if (e.response) {
+        console.error("STATUS", e.response.status);
+        console.error("DATA", e.response.data);
+        error.value = `Erreur API ${e.response.status}: ` + (typeof e.response.data === "string"
+          ? e.response.data
+          : JSON.stringify(e.response.data));
+      } else {
+        // Si pas de réponse (réseau/CORS), on garde un message simple
+        error.value = "Erreur réseau (pas de réponse du serveur).";
+      }
+    }
+    finally {
       loading.value = false;
     }
   }
+
 
   onMounted(async () => {
     await auth.init();
