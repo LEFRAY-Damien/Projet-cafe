@@ -16,6 +16,9 @@ const {
   loading,
   error,
   success,
+  dateRetrait, // ✅ AJOUT
+  minDate,     // ✅ AJOUT
+  maxDate,     // ✅ AJOUT
 } = usePanierCarte();
 
 </script>
@@ -120,16 +123,27 @@ const {
             </div>
           </div>
 
-          <div class="card-footer d-flex justify-content-between align-items-center">
+          <div class="card-footer d-flex justify-content-between align-items-end gap-3 flex-wrap">
             <button class="btn btn-outline-danger" type="button" @click="clearPanier" :disabled="loading">
               Vider le panier
             </button>
+
+            <!-- ✅ Date de retrait -->
+            <div style="min-width: 220px;">
+              <label class="form-label mb-1">Date de retrait</label>
+              <input type="date" class="form-control form-control-sm" v-model="dateRetrait" :min="minDate"
+                :max="maxDate" :disabled="loading" />
+              <div class="form-text">
+                Entre {{ minDate }} et {{ maxDate }}.
+              </div>
+            </div>
 
             <button class="btn btn-primary" type="button" @click="checkout" :disabled="loading">
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               Valider la commande
             </button>
           </div>
+
 
           <div v-if="error" class="alert alert-danger mt-3">
             {{ error }}

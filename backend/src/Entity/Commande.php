@@ -15,6 +15,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use App\State\MeCommandesProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ApiResource(
     operations: [
@@ -43,14 +45,6 @@ use Symfony\Component\Serializer\Annotation\Groups;
             uriTemplate: '/me/commandes',
             security: "is_granted('ROLE_USER')",
             provider: MeCommandesProvider::class,
-            normalizationContext: ['groups' => ['commande:read']]
-        ),
-
-
-        // ✅ USER: mes commandes
-        new GetCollection(
-            uriTemplate: '/me/commandes',
-            security: "is_granted('ROLE_USER')",
             normalizationContext: ['groups' => ['commande:read']]
         ),
 
@@ -108,6 +102,36 @@ class Commande
         $this->lignes = new ArrayCollection();
         $this->dateCommande = new \DateTimeImmutable();
         $this->statut = 'en_attente';
+    }
+
+    #[Assert\Callback]
+    public function validateDateRetrait(ExecutionContextInterface $context): void
+    {
+        // obligatoire
+        if (!$this->dateRetrait) {
+            $context->buildViolation('Choisis une date de retrait.')
+                ->atPath('dateRetrait')
+                ->addViolation();
+            return;
+        }
+
+        // minimum : demain
+        $min = (new \DateTime('today'))->modify('+1 day');
+        // maximum : dans 7 jours
+        $max = (new \DateTime('today'))->modify('+7 days');
+
+        // dateRetrait doit être entre min et max inclus
+        if ($this->dateRetrait < $min) {
+            $context->buildViolation('La date de retrait doit être au minimum le lendemain.')
+                ->atPath('dateRetrait')
+                ->addViolation();
+        }
+
+        if ($this->dateRetrait > $max) {
+            $context->buildViolation('La date de retrait doit être dans les 7 prochains jours.')
+                ->atPath('dateRetrait')
+                ->addViolation();
+        }
     }
 
     public function getId(): ?int
