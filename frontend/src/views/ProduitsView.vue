@@ -12,6 +12,7 @@ const {
   formatPrice,
   toggleFav,
   addToPanier,
+  categorieLabel,
 } = useProduitsCarte();
 </script>
 
@@ -62,9 +63,16 @@ const {
               <div class="card-body d-flex flex-column p-2">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <div>
+                    <div class="mb-1">
+                      <span class="badge text-bg-light text-muted">
+                        {{ categorieLabel(p) }}
+                      </span>
+                    </div>
+
                     <h2 class="h6 mb-1">{{ p.nom }}</h2>
                     <div class="fw-semibold">{{ formatPrice(p.prix) }} €</div>
                   </div>
+
 
                   <button v-if="auth.isLoggedIn" class="btn btn-sm"
                     :class="favorisStore.isFav(productIri(p)) ? 'btn-danger' : 'btn-outline-danger'" type="button"

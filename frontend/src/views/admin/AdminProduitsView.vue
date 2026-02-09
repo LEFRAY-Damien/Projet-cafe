@@ -219,9 +219,15 @@ onMounted(() => {
                                             <div class="card-body p-2 d-flex flex-column">
                                                 <div class="d-flex justify-content-between align-items-start gap-2">
                                                     <div class="text-start">
+                                                        <div class="mb-1">
+                                                            <span class="badge text-bg-light text-muted">
+                                                                {{ categorieLabel(p) }}
+                                                            </span>
+                                                        </div>
+
                                                         <div class="fw-semibold">{{ p.nom }}</div>
-                                                        <div class="small text-muted">{{ categorieLabel(p) }}</div>
                                                     </div>
+
 
                                                     <span class="badge"
                                                         :class="p.disponible ? 'text-bg-success' : 'text-bg-secondary'">
