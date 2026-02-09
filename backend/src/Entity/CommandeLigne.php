@@ -12,7 +12,7 @@ class CommandeLigne
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['commande:read'])]
+    #[Groups(['commande:read', 'admin:commande:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'lignes')]
@@ -23,16 +23,16 @@ class CommandeLigne
     // On écrit avec un IRI: "/api/produits/3"
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['commande:read', 'commande:write'])]
+    #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]
     #[ApiProperty(readableLink: false, writableLink: true)]
     private ?Produit $produit = null;
 
     #[ORM\Column]
-    #[Groups(['commande:read', 'commande:write'])]
+    #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]
     private int $quantite = 1;
 
     #[ORM\Column]
-    #[Groups(['commande:read', 'commande:write'])]
+    #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]
     private float $prixUnitaire = 0;
 
     public function getId(): ?int

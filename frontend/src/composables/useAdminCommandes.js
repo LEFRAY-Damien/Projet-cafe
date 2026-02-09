@@ -59,27 +59,26 @@ export function useAdminCommandes() {
     selected.value = null
 
     try {
-      if (cmd?.["@id"]) {
-        // @id = /api/admin/commandes/5 → appel direct
-        const res = await axios.get(cmd["@id"], {
-          headers: {
-            Authorization: api.defaults.headers.common.Authorization,
-          },
-        })
-        selected.value = res.data
-      } else if (cmd?.id) {
-        // fallback
-        const res = await api.get(`/admin/commandes/${cmd.id}`)
-        selected.value = res.data
-      } else {
-        throw new Error("Commande invalide")
-      }
+      const token = localStorage.getItem("token")
+      if (!token) throw new Error("Token manquant (non connecté ?)")
+
+      // cmd["@id"] = "/api/admin/commandes/5"
+      const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
+      if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
+
+      // IMPORTANT: on passe par api (baseURL) + token
+      const res = await api.get(iri, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      selected.value = res.data
     } catch (e) {
       setDetailsError(e)
     } finally {
       detailsLoading.value = false
     }
   }
+
 
 
   function closeDetails() {
