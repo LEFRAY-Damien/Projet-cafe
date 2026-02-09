@@ -31,38 +31,38 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Entity(repositoryClass: ProduitRepository::class)]
 class Produit
 {
-    #[Groups(['produit:read'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['produit:read', 'commande:read', 'admin:commande:read'])]
     private ?int $id = null;
 
-    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column(length: 150)]
+    #[Groups(['produit:read', 'produit:write', 'commande:read', 'admin:commande:read'])]
     private ?string $nom = null;
 
-    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['produit:read', 'produit:write'])]
     private ?string $description = null;
 
-    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column]
+    #[Groups(['produit:read', 'produit:write'])]
     private ?float $prix = null;
 
-    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\Column]
+    #[Groups(['produit:read', 'produit:write'])]
     private ?bool $disponible = null;
 
-    #[Groups(['produit:read', 'produit:write'])]
     #[ORM\ManyToOne(inversedBy: 'produits')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['produit:read', 'produit:write'])]
     private ?Categorie $categorie = null;
 
     /**
      * @var Collection<int, Image>
      */
-    #[Groups(['produit:read'])]
     #[ORM\OneToMany(mappedBy: 'produit', targetEntity: Image::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[Groups(['produit:read'])]
     private Collection $images;
 
     /**
@@ -159,12 +159,8 @@ class Produit
     public function removeImage(Image $image): static
     {
         if ($this->images->removeElement($image)) {
-            // orphanRemoval=true + cascade remove => Doctrine supprime l'image
             if ($image->getProduit() === $this) {
-                // nullable=false donc on évite de mettre null en base si possible
-                // mais orphanRemoval gère la suppression, donc ce set null n'est plus nécessaire
-                // On le laisse sans toucher au DB :
-                // $image->setProduit(null);
+                // orphanRemoval=true + cascade remove => Doctrine supprime l'image
             }
         }
 

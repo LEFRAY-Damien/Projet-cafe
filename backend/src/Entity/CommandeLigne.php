@@ -24,7 +24,7 @@ class CommandeLigne
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
     #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]
-    #[ApiProperty(readableLink: false, writableLink: true)]
+    #[ApiProperty(readableLink: true, writableLink: true)]
     private ?Produit $produit = null;
 
     #[ORM\Column]

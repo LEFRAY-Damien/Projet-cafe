@@ -35,8 +35,12 @@ function badgeClass(statut) {
         <h2 class="h5 mb-0">Commandes</h2>
 
         <div class="d-flex gap-2">
-          <input v-model="search" class="form-control" style="max-width: 360px"
-            placeholder="Rechercher (id, statut, dates...)" />
+          <input
+            v-model="search"
+            class="form-control"
+            style="max-width: 360px"
+            placeholder="Rechercher (id, statut, dates...)"
+          />
           <button class="btn btn-outline-primary" @click="loadCommandes" :disabled="loading">
             Rafraîchir
           </button>
@@ -103,7 +107,7 @@ function badgeClass(statut) {
         <div v-if="selected && !detailsLoading" class="row g-3">
           <div class="col-12 col-md-6">
             <div class="border rounded p-3">
-              <div class="text-muted small">ID</div>
+              <div class="text-muted small">Commande numéro</div>
               <div class="fw-semibold">{{ selected.id }}</div>
             </div>
           </div>
@@ -134,56 +138,56 @@ function badgeClass(statut) {
           </div>
         </div>
 
-        <!-- Lignes de commande -->
-        <div v-if="selected && !detailsLoading" class="mt-3">
-          <h4 class="h6">Articles</h4>
+<!-- Lignes de commande -->
+<div v-if="selected && !detailsLoading" class="mt-3">
+  <h4 class="h6">Articles</h4>
 
-          <div v-if="!selected.lignes || selected.lignes.length === 0" class="text-muted">
-            Aucune ligne.
-          </div>
+  <div v-if="!selected.lignes || selected.lignes.length === 0" class="text-muted">
+    Aucune ligne.
+  </div>
 
-          <div v-else class="table-responsive">
-            <table class="table table-sm align-middle">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Produit</th>
-                  <th class="text-end">Qté</th>
-                  <th class="text-end">PU</th>
-                  <th class="text-end">Total</th>
-                </tr>
-              </thead>
+  <div v-else class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Produit</th>
+          <th class="text-end">Qté</th>
+          <th class="text-end">PU</th>
+          <th class="text-end">Total</th>
+        </tr>
+      </thead>
 
-              <tbody>
-                <tr v-for="l in selected.lignes" :key="l['@id'] || l.id">
-                  <td>{{ l.id }}</td>
+      <tbody>
+        <tr v-for="l in selected.lignes" :key="l['@id'] || l.id">
+          <td>{{ l.id }}</td>
 
-                  <td>
-                    <!-- Si produit = IRI -->
-                    <code v-if="typeof l.produit === 'string'">
+          <td>
+            <!-- Si produit = IRI -->
+            <code v-if="typeof l.produit === 'string'">
               {{ l.produit }}
             </code>
 
-                    <!-- Si produit = objet -->
-                    <span v-else>
-                      {{ l.produit?.nom ?? l.produit?.title ?? '—' }}
-                    </span>
-                  </td>
+            <!-- Si produit = objet -->
+            <span v-else>
+              {{ l.produit?.nom ?? l.produit?.title ?? '—' }}
+            </span>
+          </td>
 
-                  <td class="text-end">{{ l.quantite }}</td>
+          <td class="text-end">{{ l.quantite }}</td>
 
-                  <td class="text-end">
-                    {{ Number(l.prixUnitaire || 0).toFixed(2) }} €
-                  </td>
+          <td class="text-end">
+            {{ Number(l.prixUnitaire || 0).toFixed(2) }} €
+          </td>
 
-                  <td class="text-end">
-                    {{ (Number(l.prixUnitaire || 0) * Number(l.quantite || 0)).toFixed(2) }} €
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <td class="text-end">
+            {{ (Number(l.prixUnitaire || 0) * Number(l.quantite || 0)).toFixed(2) }} €
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 
 

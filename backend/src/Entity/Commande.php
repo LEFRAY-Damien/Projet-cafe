@@ -13,6 +13,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use App\State\MeCommandesProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ApiResource(
@@ -35,6 +36,21 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Get(
             uriTemplate: '/commandes/{id}',
             security: "object.getUser() == user or is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['commande:read']]
+        ),
+
+        new GetCollection(
+            uriTemplate: '/me/commandes',
+            security: "is_granted('ROLE_USER')",
+            provider: MeCommandesProvider::class,
+            normalizationContext: ['groups' => ['commande:read']]
+        ),
+
+
+        // ✅ USER: mes commandes
+        new GetCollection(
+            uriTemplate: '/me/commandes',
+            security: "is_granted('ROLE_USER')",
             normalizationContext: ['groups' => ['commande:read']]
         ),
 
