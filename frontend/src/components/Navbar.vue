@@ -17,7 +17,7 @@ const panier = usePanierStore()
 
         <!-- 🛒 PANIER -->
         <RouterLink v-if="auth.isLoggedIn" to="/panier" class="nav-link position-relative">
-          🛒
+          Panier
           <span v-if="panier.count > 0"
             class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
             {{ panier.count }}
@@ -25,12 +25,12 @@ const panier = usePanierStore()
 
         </RouterLink>
 
-        <RouterLink class="nav-link" to="/contact">Contact</RouterLink>
-
         <!-- 👤 COMPTE -->
         <RouterLink v-if="auth.isLoggedIn" class="nav-link" to="/compte">
           Compte
         </RouterLink>
+
+        <RouterLink class="nav-link" to="/contact">Contact</RouterLink>
 
         <!-- 🔐 ADMIN -->
         <RouterLink v-if="auth.isAdmin" class="nav-link" to="/admin/produits">

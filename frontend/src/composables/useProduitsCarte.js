@@ -11,7 +11,21 @@ export function useProduitsCarte() {
   const favorisStore = useFavorisStore();
   const panier = usePanierStore();
 
-  const produits = computed(() => produitsStore.items ?? []);
+  const produits = computed(() => {
+    const list = produitsStore.items ?? [];
+
+    return [...list].sort((a, b) => {
+      const af = favorisStore.isFav(productIri(a)) ? 1 : 0;
+      const bf = favorisStore.isFav(productIri(b)) ? 1 : 0;
+
+      // favoris d’abord
+      if (af !== bf) return bf - af;
+
+      // optionnel : si égalité, tri par nom
+      return String(a.nom ?? "").localeCompare(String(b.nom ?? ""), "fr", { sensitivity: "base" });
+    });
+  });
+
 
   const imageUrlCache = ref({}); // { "/api/images/1": "http://..." }
 
@@ -60,8 +74,9 @@ export function useProduitsCarte() {
   }
 
   async function toggleFav(p) {
-    await favorisStore.toggle(productIri(p));
+    await favorisStore.toggle(productIri(p), p.id)
   }
+
 
   function addToPanier(p) {
     panier.add({
@@ -72,9 +87,15 @@ export function useProduitsCarte() {
   }
 
   async function init() {
-    await auth.init();
-    await produitsStore.fetchProduits();
+    await auth.init()
+    if (auth.isLoggedIn) {
+      await favorisStore.load()
+    } else {
+      favorisStore.reset()
+    }
+    await produitsStore.fetchProduits()
   }
+
 
   onMounted(() => {
     init();
