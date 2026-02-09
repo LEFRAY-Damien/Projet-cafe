@@ -15,9 +15,6 @@
                         </RouterLink>
                     </li>
                     <li class="nav-item">
-                        <RouterLink class="nav-link" active-class="active" to="/admin/images">Images</RouterLink>
-                    </li>
-                    <li class="nav-item">
                         <RouterLink class="nav-link" active-class="active" to="/admin/commandes">Commandes</RouterLink>
                     </li>
                     <li class="nav-item">

@@ -32,7 +32,6 @@ const router = createRouter({
       children: [
         { path: "produits", component: () => import("@/views/admin/AdminProduitsView.vue") },
         { path: "categories", component: () => import("@/views/admin/AdminCategoriesView.vue") },
-        { path: "images", component: () => import("@/views/admin/AdminImagesView.vue") },
         { path: "commandes", component: () => import("@/views/admin/AdminCommandesView.vue") },
         { path: "users", component: () => import("@/views/admin/AdminUsersView.vue") },
         { path: "", redirect: "/admin/produits" },

@@ -13,6 +13,8 @@ const {
   toggleFav,
   addToPanier,
   categorieLabel,
+  categories,            // ✅ AJOUT
+  selectedCategorieIri,  // ✅ AJOUT
 } = useProduitsCarte();
 </script>
 
@@ -27,6 +29,23 @@ const {
           <h1 class="h3 mb-1">La carte</h1>
           <div>Produits disponibles au retrait</div>
         </div>
+        
+        <!-- ✅ Filtre catégorie -->
+        <div class="mt-2 d-flex gap-2" style="max-width: 260px;">
+          <select v-model="selectedCategorieIri" class="form-select form-select-sm">
+            <option value="">Toutes catégories</option>
+            <option v-for="c in categories" :key="c['@id']" :value="c['@id']">
+              {{ c.nom }}
+            </option>
+          </select>
+
+          <button class="btn btn-sm btn-outline-light" type="button" @click="selectedCategorieIri = ''">
+            Reset
+          </button>
+        </div>
+
+
+
 
         <div class="text-end">
           <div class="small">Panier</div>

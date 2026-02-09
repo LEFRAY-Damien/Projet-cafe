@@ -15,8 +15,11 @@ export function useProduitsCarte() {
     return p["@id"] || `/api/produits/${p.id}`
   }
 
-  // ✅ Catégories (comme ton admin)
+  // =========================
+  // ✅ Catégories (pour filtre + label)
+  // =========================
   const categories = ref([])
+  const selectedCategorieIri = ref("") // "" = toutes
 
   async function fetchCategories() {
     try {
@@ -26,6 +29,13 @@ export function useProduitsCarte() {
       console.warn("Erreur chargement categories", e)
       categories.value = []
     }
+  }
+
+  function categorieIriOfProduit(p) {
+    const c = p.categorie
+    if (!c) return null
+    if (typeof c === "string") return c // IRI
+    return c["@id"] ?? (c.id ? `/api/categories/${c.id}` : null)
   }
 
   function categorieLabel(p) {
@@ -40,11 +50,19 @@ export function useProduitsCarte() {
     return found?.nom ?? "—"
   }
 
-  // ✅ Produits triés : favoris d'abord
+  // =========================
+  // ✅ Produits filtrés + triés (favoris d'abord)
+  // =========================
   const produits = computed(() => {
     const list = produitsStore.items ?? []
 
-    return [...list].sort((a, b) => {
+    // filtre catégorie si sélection
+    const filtered = selectedCategorieIri.value
+      ? list.filter((p) => categorieIriOfProduit(p) === selectedCategorieIri.value)
+      : list
+
+    // tri favoris d'abord, puis nom
+    return [...filtered].sort((a, b) => {
       const af = favorisStore.isFav(productIri(a)) ? 1 : 0
       const bf = favorisStore.isFav(productIri(b)) ? 1 : 0
       if (af !== bf) return bf - af
@@ -55,7 +73,9 @@ export function useProduitsCarte() {
     })
   })
 
+  // =========================
   // ✅ Images
+  // =========================
   const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
 
   async function resolveImageIri(iri) {
@@ -87,6 +107,9 @@ export function useProduitsCarte() {
     return null
   }
 
+  // =========================
+  // ✅ Helpers / actions
+  // =========================
   function formatPrice(value) {
     const n = Number(value ?? 0)
     return n.toFixed(2).replace(".", ",")
@@ -126,11 +149,15 @@ export function useProduitsCarte() {
     panier,
     produits,
 
+    // catégories + filtre
+    categories,
+    selectedCategorieIri,
+
     // helpers
     productIri,
     firstImageUrl,
     formatPrice,
-    categorieLabel, // ✅ IMPORTANT
+    categorieLabel,
 
     // actions
     toggleFav,
