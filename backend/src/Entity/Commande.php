@@ -7,6 +7,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Delete;
 use App\Repository\CommandeRepository;
 use App\State\CommandeProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -20,21 +21,21 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ApiResource(
     operations: [
-        // ✅ ADMIN: liste de toutes les commandes
         new GetCollection(
             uriTemplate: '/admin/commandes',
             security: "is_granted('ROLE_ADMIN')",
             normalizationContext: ['groups' => ['admin:commande:read']]
         ),
-
-        // ✅ ADMIN: détail d’une commande
         new Get(
             uriTemplate: '/admin/commandes/{id}',
             security: "is_granted('ROLE_ADMIN')",
             normalizationContext: ['groups' => ['admin:commande:read']]
         ),
+        new Delete(
+            uriTemplate: '/admin/commandes/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
 
-        // ✅ STANDARD ITEM (sert d’ancre IRI pour API Platform)
         new Get(
             uriTemplate: '/commandes/{id}',
             security: "object.getUser() == user or is_granted('ROLE_ADMIN')",
@@ -48,19 +49,20 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
             normalizationContext: ['groups' => ['commande:read']]
         ),
 
-        // ✅ USER: collection + création
         new GetCollection(
             security: "is_granted('ROLE_USER')"
         ),
+
         new Post(
             security: "is_granted('ROLE_USER')",
-            output: false
+            output: false,
+            processor: CommandeProcessor::class
         ),
     ],
     normalizationContext: ['groups' => ['commande:read']],
-    denormalizationContext: ['groups' => ['commande:write']],
-    processor: CommandeProcessor::class
+    denormalizationContext: ['groups' => ['commande:write']]
 )]
+
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 class Commande
 {
@@ -91,7 +93,7 @@ class Commande
     #[ORM\OneToMany(
         mappedBy: 'commande',
         targetEntity: CommandeLigne::class,
-        cascade: ['persist'],
+        cascade: ['persist', 'remove'],
         orphanRemoval: true
     )]
     #[Groups(['commande:read', 'commande:write', 'admin:commande:read'])]

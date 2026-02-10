@@ -16,7 +16,7 @@ class CommandeLigne
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'lignes')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     #[ApiProperty(readable: false, writable: false)]
     private ?Commande $commande = null;
 

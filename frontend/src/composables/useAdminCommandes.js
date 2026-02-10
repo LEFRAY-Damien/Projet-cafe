@@ -1,7 +1,5 @@
 import { computed, ref } from "vue"
 import api from "@/api/axios"
-import axios from "axios"
-
 
 export function useAdminCommandes() {
   const commandes = ref([])
@@ -26,8 +24,13 @@ export function useAdminCommandes() {
       e?.response?.data?.detail ||
       e?.response?.data?.message ||
       e?.message ||
-      e?.message ||
       "Erreur inconnue"
+  }
+
+  function getTokenOrThrow() {
+    const token = localStorage.getItem("token")
+    if (!token) throw new Error("Token manquant (non connecté ?)")
+    return token
   }
 
   async function loadCommandes() {
@@ -35,16 +38,13 @@ export function useAdminCommandes() {
     error.value = ""
 
     try {
-      const token = localStorage.getItem("token")
+      const token = getTokenOrThrow()
 
-      const res = await api.get("http://localhost:8000/api/admin/commandes", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const res = await api.get("/api/admin/commandes", {
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       commandes.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
-
     } catch (e) {
       setError(e)
     } finally {
@@ -52,21 +52,18 @@ export function useAdminCommandes() {
     }
   }
 
-
   async function openDetails(cmd) {
     detailsLoading.value = true
     detailsError.value = ""
     selected.value = null
 
     try {
-      const token = localStorage.getItem("token")
-      if (!token) throw new Error("Token manquant (non connecté ?)")
+      const token = getTokenOrThrow()
 
       // cmd["@id"] = "/api/admin/commandes/5"
       const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
       if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
 
-      // IMPORTANT: on passe par api (baseURL) + token
       const res = await api.get(iri, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -79,7 +76,36 @@ export function useAdminCommandes() {
     }
   }
 
+  // ✅ SUPPRESSION ADMIN
+  async function removeCommande(cmd) {
+    error.value = ""
+    detailsError.value = ""
 
+    try {
+      const token = getTokenOrThrow()
+
+      const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
+      if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
+
+      // supprime côté API
+      await api.delete(iri, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      // MAJ liste locale
+      const id = cmd?.id ?? selected.value?.id
+      if (id != null) {
+        commandes.value = commandes.value.filter((c) => c.id !== id)
+      }
+
+      // fermer le détail si c'est la commande affichée
+      if (selected.value && (selected.value.id === id)) {
+        selected.value = null
+      }
+    } catch (e) {
+      setError(e)
+    }
+  }
 
   function closeDetails() {
     selected.value = null
@@ -137,6 +163,7 @@ export function useAdminCommandes() {
     loadCommandes,
     openDetails,
     closeDetails,
+    removeCommande, // ✅ EXPORT
 
     filteredCommandes,
     formatDateTime,

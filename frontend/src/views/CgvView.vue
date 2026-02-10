@@ -36,11 +36,6 @@
                 Les commandes doivent être retirées dans le point de vente sélectionné à la date et à l’heure indiquées.
             </p>
 
-            <h4>6. Responsabilité</h4>
-            <p>
-                Café Français ne saurait être tenu responsable des dommages résultant d’une mauvaise utilisation des
-                produits.
-            </p>
         </div>
     </div>
 </template>

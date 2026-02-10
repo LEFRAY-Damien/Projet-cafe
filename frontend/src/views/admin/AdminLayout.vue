@@ -6,7 +6,7 @@
             <div class="container py-4">
                 <h1 class="h3 mb-3">Administration</h1>
 
-                <ul class="nav nav-pills mb-3 flex-wrap gap-2">
+                <ul class="nav nav-pills mb-3 flex-wrap gap-2 rounded bg-white">
                     <li class="nav-item">
                         <RouterLink class="nav-link" active-class="active" to="/admin/produits">Produits</RouterLink>
                     </li>
