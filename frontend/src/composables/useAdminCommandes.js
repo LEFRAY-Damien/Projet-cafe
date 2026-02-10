@@ -19,6 +19,41 @@ export function useAdminCommandes() {
       "Erreur inconnue"
   }
 
+  async function updateStatut(cmd, newStatut) {
+    error.value = ""
+
+    try {
+      const token = localStorage.getItem("token")
+      if (!token) throw new Error("Token manquant (non connecté ?)")
+
+      const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
+      if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
+
+      const res = await api.patch(
+        iri,
+        { statut: newStatut },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/merge-patch+json",
+          },
+        }
+      )
+
+      // MAJ selected si ouvert
+      if (selected.value?.id === cmd.id) {
+        selected.value = res.data
+      }
+
+      // MAJ liste locale (pour éviter refresh)
+      const idx = commandes.value.findIndex((c) => c.id === cmd.id)
+      if (idx !== -1) commandes.value[idx] = { ...commandes.value[idx], statut: newStatut }
+    } catch (e) {
+      setError(e)
+    }
+  }
+
+
   function setDetailsError(e) {
     detailsError.value =
       e?.response?.data?.detail ||
@@ -164,7 +199,7 @@ export function useAdminCommandes() {
     openDetails,
     closeDetails,
     removeCommande, // ✅ EXPORT
-
+    updateStatut,
     filteredCommandes,
     formatDateTime,
     formatDateOnly,

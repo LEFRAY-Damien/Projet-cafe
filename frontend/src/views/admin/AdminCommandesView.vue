@@ -13,6 +13,7 @@ const {
   selected,
   detailsLoading,
   detailsError,
+  updateStatut,
   formatDateTime,
   formatDateOnly,
   removeCommande,
@@ -25,12 +26,20 @@ function confirmDelete() {
 }
 
 function badgeClass(statut) {
-  const s = String(statut || "").toLowerCase()
-  if (s.includes("val") || s.includes("paid") || s.includes("ok")) return "text-bg-success"
-  if (s.includes("att") || s.includes("prep") || s.includes("cours")) return "text-bg-warning"
-  if (s.includes("ann") || s.includes("refus")) return "text-bg-danger"
-  return "text-bg-secondary"
+  switch (statut) {
+    case "prete":
+      return "text-bg-primary"
+    case "retiree":
+      return "text-bg-success"   // ✅ retirée en vert
+    case "refusee":
+      return "text-bg-danger"
+    case "annulee":
+      return "text-bg-secondary"
+    default:
+      return "text-bg-warning"   // en_attente
+  }
 }
+
 </script>
 
 <template>
@@ -79,8 +88,7 @@ function badgeClass(statut) {
                     Détail
                   </button>
 
-                  <button class="btn btn-sm btn-outline-danger"
-                    @click="confirmDelete() && removeCommande(c)"
+                  <button class="btn btn-sm btn-outline-danger" @click="confirmDelete() && removeCommande(c)"
                     :disabled="loading || detailsLoading" title="Supprimer">
                     Suppr.
                   </button>
@@ -126,11 +134,21 @@ function badgeClass(statut) {
             <div class="col-12 col-md-6">
               <div class="border rounded p-3">
                 <div class="text-muted small">Statut</div>
-                <div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
                   <span class="badge" :class="badgeClass(selected.statut)">
                     {{ selected.statut || "—" }}
                   </span>
+
+                  <select class="form-select form-select-sm" style="max-width: 220px;" :value="selected.statut"
+                    @change="updateStatut(selected, $event.target.value)" :disabled="detailsLoading || loading">
+                    <option value="en_attente">🕒 En attente</option>
+                    <option value="prete">🛍️ Prête</option>
+                    <option value="retiree">🧾 Retirée</option>
+                    <option value="refusee">❌ Refusée</option>
+                    <option value="annulee">🚫 Annulée</option>
+                  </select>
                 </div>
+
               </div>
             </div>
 

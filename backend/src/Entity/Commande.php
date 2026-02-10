@@ -15,6 +15,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use App\State\MeCommandesProvider;
+use ApiPlatform\Metadata\Patch;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
@@ -53,6 +54,13 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
             security: "is_granted('ROLE_USER')"
         ),
 
+        new Patch(
+            uriTemplate: '/admin/commandes/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['admin:commande:write']],
+            normalizationContext: ['groups' => ['admin:commande:read']]
+        ),
+
         new Post(
             security: "is_granted('ROLE_USER')",
             output: false,
@@ -82,7 +90,8 @@ class Commande
     private ?\DateTime $dateRetrait = null;
 
     #[ORM\Column(length: 30)]
-    #[Groups(['commande:read', 'admin:commande:read'])]
+    #[Groups(['commande:read', 'admin:commande:read', 'admin:commande:write'])]
+    #[Assert\Choice(choices: ['en_attente','prete','retiree','refusee','annulee'])]
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'commandes')]
