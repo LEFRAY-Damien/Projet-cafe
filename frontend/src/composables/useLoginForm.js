@@ -7,7 +7,7 @@ export function useLoginForm(options = {}) {
   const auth = useAuthStore()
 
   const redirectTo = options.redirectTo ?? "/produits"
-  const defaultEmail = options.defaultEmail ?? "test@test.com"
+  const defaultEmail = options.defaultEmail ?? ""
 
   const email = ref(defaultEmail)
   const password = ref("")
@@ -30,12 +30,5 @@ export function useLoginForm(options = {}) {
     }
   }
 
-  return {
-    auth,
-    email,
-    password,
-    error,
-    loading,
-    submit,
-  }
+  return { email, password, error, loading, submit }
 }
