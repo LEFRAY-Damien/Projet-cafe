@@ -12,7 +12,7 @@
 
       <p class="mb-3">
         📧 <strong>contact@cafefrancais.fr</strong><br />
-        📞 <strong>02 43 85 72 19</strong>
+        📞 <strong>02 43 85 72</strong>
       </p>
 
       <p>
