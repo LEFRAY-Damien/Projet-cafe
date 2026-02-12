@@ -1,9 +1,16 @@
 <script setup>
+import { useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { usePanierStore } from "../stores/panier"
 
+const router = useRouter()
 const auth = useAuthStore()
 const panier = usePanierStore()
+
+function onLogout() {
+  auth.logout()
+  router.replace("/") // ✅ retour accueil, et pas de retour arrière vers /admin
+}
 </script>
 
 <template>
@@ -18,11 +25,12 @@ const panier = usePanierStore()
         <!-- 🛒 PANIER -->
         <RouterLink v-if="auth.isLoggedIn" to="/panier" class="nav-link position-relative">
           Panier
-          <span v-if="panier.count > 0"
-            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+          <span
+            v-if="panier.count > 0"
+            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+          >
             {{ panier.count }}
           </span>
-
         </RouterLink>
 
         <!-- 👤 COMPTE -->
@@ -42,7 +50,7 @@ const panier = usePanierStore()
           Se connecter
         </RouterLink>
 
-        <button v-else class="btn btn-outline-light btn-sm ms-2" @click="auth.logout()">
+        <button v-else class="btn btn-outline-light btn-sm ms-2" @click="onLogout">
           Déconnexion
         </button>
 
