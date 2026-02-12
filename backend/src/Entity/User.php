@@ -7,6 +7,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Post;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -21,16 +22,29 @@ use Symfony\Component\Serializer\Attribute\Groups;
         // ✅ Public : inscription
         new Post(
             uriTemplate: '/register',
-            security: "is_granted('PUBLIC_ACCESS')",            processor: \App\State\UserRegisterProcessor::class,
+            security: "is_granted('PUBLIC_ACCESS')",
+            processor: \App\State\UserRegisterProcessor::class,
             denormalizationContext: ['groups' => ['user:write']],
             normalizationContext: ['groups' => ['user:read']]
         ),
+
+        new \ApiPlatform\Metadata\Delete(
+            security: "is_granted('ROLE_ADMIN') or object == user",
+            processor: \App\State\UserSoftDeleteProcessor::class
+        ),
+
 
         // ✅ Admin only : gestion users
         new GetCollection(security: "is_granted('ROLE_ADMIN')"),
         new Get(security: "is_granted('ROLE_ADMIN')"),
         new Put(security: "is_granted('ROLE_ADMIN')"),
-        new Patch(security: "is_granted('ROLE_ADMIN') or object == user")
+        new Patch(security: "is_granted('ROLE_ADMIN') or object == user"),
+
+        new Delete(
+            security: "is_granted('ROLE_ADMIN') or object == user",
+            processor: \App\State\UserSoftDeleteProcessor::class
+        ),
+
 
     ],
     normalizationContext: ['groups' => ['user:read']],
@@ -84,6 +98,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read', 'user:write'])]
     private bool $isActive = true;
 
+    #[ORM\Column(nullable: true)]
+    #[Groups(['user:read'])]
+    private ?\DateTimeImmutable $deletedAt = null;
+
+
     /**
      * @var Collection<int, Produit>
      */
@@ -119,6 +138,31 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->email = $email;
         return $this;
     }
+
+    public function getDeletedAt(): ?\DateTimeImmutable
+    {
+        return $this->deletedAt;
+    }
+
+    public function setDeletedAt(?\DateTimeImmutable $deletedAt): static
+    {
+        $this->deletedAt = $deletedAt;
+        return $this;
+    }
+
+    public function isSoftDeleted(): bool
+    {
+        return $this->deletedAt !== null || $this->isActive === false;
+    }
+
+    public function clearFavoris(): void
+    {
+        foreach ($this->favoris as $produit) {
+            $this->removeFavori($produit);
+        }
+    }
+
+
 
     /**
      * A visual identifier that represents this user.

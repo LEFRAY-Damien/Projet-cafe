@@ -8,14 +8,14 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Patch;
 use App\Repository\CommandeRepository;
 use App\State\CommandeProcessor;
+use App\State\MeCommandesProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use App\State\MeCommandesProvider;
-use ApiPlatform\Metadata\Patch;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
@@ -70,10 +70,16 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
     normalizationContext: ['groups' => ['commande:read']],
     denormalizationContext: ['groups' => ['commande:write']]
 )]
-
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 class Commande
 {
+    // ✅ Constantes (évite les strings partout)
+    public const STATUT_EN_ATTENTE = 'en_attente';
+    public const STATUT_PRETE      = 'prete';
+    public const STATUT_RETIREE    = 'retiree';
+    public const STATUT_REFUSEE    = 'refusee';
+    public const STATUT_ANNULEE    = 'annulee';
+
     #[ApiProperty(identifier: true)]
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -91,7 +97,13 @@ class Commande
 
     #[ORM\Column(length: 30)]
     #[Groups(['commande:read', 'admin:commande:read', 'admin:commande:write'])]
-    #[Assert\Choice(choices: ['en_attente','prete','retiree','refusee','annulee'])]
+    #[Assert\Choice(choices: [
+        self::STATUT_EN_ATTENTE,
+        self::STATUT_PRETE,
+        self::STATUT_RETIREE,
+        self::STATUT_REFUSEE,
+        self::STATUT_ANNULEE,
+    ])]
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'commandes')]
@@ -112,7 +124,7 @@ class Commande
     {
         $this->lignes = new ArrayCollection();
         $this->dateCommande = new \DateTimeImmutable();
-        $this->statut = 'en_attente';
+        $this->statut = self::STATUT_EN_ATTENTE;
     }
 
     #[Assert\Callback]
@@ -219,5 +231,33 @@ class Commande
             }
         }
         return $this;
+    }
+
+    // ==========================================================
+    // ✅ Logique métier pour suppression de compte (soft delete)
+    // ==========================================================
+
+    /**
+     * Une commande est "terminée" si elle ne doit plus être modifiée.
+     * Ici : retirée / refusée / annulée.
+     */
+    public function isTerminee(): bool
+    {
+        return in_array($this->statut, [
+            self::STATUT_RETIREE,
+            self::STATUT_REFUSEE,
+            self::STATUT_ANNULEE,
+        ], true);
+    }
+
+    /**
+     * Annule la commande uniquement si elle n'est pas terminée.
+     * (en_attente ou prete => annulee)
+     */
+    public function annulerSiNonTerminee(): void
+    {
+        if (!$this->isTerminee()) {
+            $this->statut = self::STATUT_ANNULEE;
+        }
     }
 }

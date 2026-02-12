@@ -1,16 +1,18 @@
 <script setup>
 import { onMounted } from "vue"
+import { useRouter } from "vue-router"
 import { useCompte } from "@/composables/useCompte"
 import { useMesCommandes } from "@/composables/useMesCommandes"
 import { useCompteEdit } from "@/composables/useCompteEdit"
 import { useAuthStore } from "@/stores/auth"
 
 const auth = useAuthStore()
+const router = useRouter()
 
 // 🔹 Données compte (lecture)
 const { isLoggedIn, prenom, nom, email, whatsapp, roles } = useCompte()
 
-// 🔹 Edition compte (déstructuré = Solution A)
+// 🔹 Edition + suppression compte
 const {
   editMode,
   saving,
@@ -21,6 +23,11 @@ const {
   cancelEdit,
   save,
   reset,
+
+  // ✅ suppression
+  deleting,
+  deleteError,
+  deleteAccount,
 } = useCompteEdit({ prenom, nom, whatsapp })
 
 // 🔹 Commandes
@@ -46,6 +53,31 @@ onMounted(async () => {
     loadMesCommandes()
   }
 })
+
+// ✅ handler suppression (UI)
+async function onDeleteAccount() {
+  const ok = confirm(
+    "⚠️ Confirmer la suppression du compte ?\n\n" +
+      "- Votre compte sera désactivé (soft delete)\n" +
+      "- Vos données seront anonymisées\n" +
+      "- Vos favoris seront supprimés\n" +
+      "- Vos commandes 'en_attente' / 'prete' seront annulées\n\n" +
+      "Continuer ?"
+  )
+  if (!ok) return
+
+  const done = await deleteAccount()
+  if (done) {
+    // déconnexion front
+    auth.token = null
+    auth.user = null
+    auth.email = null
+    localStorage.removeItem("token")
+
+    alert("Compte supprimé (désactivé).")
+    router.push("/login")
+  }
+}
 </script>
 
 <template>
@@ -65,12 +97,17 @@ onMounted(async () => {
             <div class="card-body">
               <h2 class="h5 card-title mb-3">Informations personnelles</h2>
 
-              <!-- Messages -->
+              <!-- Messages update -->
               <div v-if="saveSuccess" class="alert alert-success">
                 Informations mises à jour 👍
               </div>
               <div v-if="saveError" class="alert alert-danger">
                 {{ saveError }}
+              </div>
+
+              <!-- Message delete -->
+              <div v-if="deleteError" class="alert alert-danger">
+                {{ deleteError }}
               </div>
 
               <ul class="list-group list-group-flush mb-3">
@@ -134,26 +171,24 @@ onMounted(async () => {
 
               <!-- Boutons -->
               <div v-if="!editMode" class="d-grid gap-2">
-                <button
-                  type="button"
-                  class="btn btn-outline-primary"
-                  @click="startEdit"
-                >
+                <button type="button" class="btn btn-outline-primary" @click="startEdit">
                   Modifier mes infos
                 </button>
 
-                <button class="btn btn-outline-danger" disabled>
-                  Se désinscrire (à venir)
+                <!-- ✅ Supprimer compte -->
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  :disabled="deleting"
+                  @click="onDeleteAccount"
+                >
+                  <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
+                  Supprimer mon compte
                 </button>
               </div>
 
               <div v-else class="d-grid gap-2">
-                <button
-                  type="button"
-                  class="btn btn-primary"
-                  :disabled="saving"
-                  @click="save"
-                >
+                <button type="button" class="btn btn-primary" :disabled="saving" @click="save">
                   {{ saving ? "Enregistrement..." : "Enregistrer" }}
                 </button>
 
@@ -222,6 +257,7 @@ onMounted(async () => {
                 </div>
               </div>
 
+              <!-- (Tes modals/details si tu les as, inchangés) -->
             </div>
           </div>
         </div>
