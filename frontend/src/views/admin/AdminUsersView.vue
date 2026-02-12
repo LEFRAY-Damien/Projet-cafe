@@ -2,6 +2,10 @@
 import { onMounted } from "vue"
 import { useAdminUsersCrud } from "../../composables/useAdminUsersCrud"
 
+function isSoftDeleted(u) {
+  return !!u.deletedAt || String(u?.email || "").startsWith("deleted+")
+}
+
 const {
   loading,
   error,
@@ -17,6 +21,12 @@ const {
   submitForm,
   toggleActive,
   toggleSort,
+
+  // ✅ delete
+  deleting,
+  deletingId,
+  deleteError,
+  softDeleteUser,
 } = useAdminUsersCrud()
 
 onMounted(() => loadUsers())
@@ -64,12 +74,22 @@ onMounted(() => loadUsers())
 
                 <div>
                   <label class="form-label">WhatsApp</label>
-                  <input v-model="form.whatsapp" class="form-control" type="text" placeholder="+33..." />
+                  <input
+                    v-model="form.whatsapp"
+                    class="form-control"
+                    type="text"
+                    placeholder="+33..."
+                  />
                 </div>
 
                 <div>
                   <label class="form-label">Rôles</label>
-                  <input v-model="form.rolesText" class="form-control" type="text" placeholder="ROLE_USER,ROLE_ADMIN" />
+                  <input
+                    v-model="form.rolesText"
+                    class="form-control"
+                    type="text"
+                    placeholder="ROLE_USER,ROLE_ADMIN"
+                  />
                   <div class="form-text">
                     Sépare par des virgules. <code>ROLE_USER</code> sera toujours ajouté.
                   </div>
@@ -96,8 +116,12 @@ onMounted(() => loadUsers())
                 <h2 class="h5 mb-0">Utilisateurs</h2>
 
                 <div class="d-flex gap-2">
-                  <input v-model="search" class="form-control" style="max-width: 320px"
-                    placeholder="Rechercher (email, nom, rôle...)" />
+                  <input
+                    v-model="search"
+                    class="form-control"
+                    style="max-width: 320px"
+                    placeholder="Rechercher (email, nom, rôle...)"
+                  />
                   <button class="btn btn-outline-primary" @click="loadUsers" :disabled="loading">
                     Rafraîchir
                   </button>
@@ -105,43 +129,68 @@ onMounted(() => loadUsers())
               </div>
 
               <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
+              <div v-if="deleteError" class="alert alert-danger py-2">{{ deleteError }}</div>
               <div v-if="loading" class="text-muted mb-2">Chargement...</div>
 
               <div v-if="!loading && filteredSortedUsers.length" class="list-group list-group-flush">
-
-                <div v-for="u in filteredSortedUsers" :key="u.id"
-                  class="list-group-item d-flex justify-content-between align-items-center">
+                <div
+                  v-for="u in filteredSortedUsers"
+                  :key="u.id"
+                  class="list-group-item d-flex justify-content-between align-items-center"
+                >
                   <div>
                     <div class="fw-semibold">
                       {{ u.prenom }} {{ u.nom }}
                     </div>
+
                     <div class="small text-muted">
-                     Adresse mail: {{ u.email }} <br> Role: {{ rolesLabel(u) }}
+                      Adresse mail: {{ u.email }} <br />
+                      Role: {{ rolesLabel(u) }}
                     </div>
+
                     <div class="small">
                       Actif :
-                      <span :class="u.isActive ? 'text-success' : 'text-secondary'">
-                        {{ u.isActive ? "Oui" : "Non" }}
+                      <span
+                        v-if="typeof (u.isActive ?? u.active) === 'boolean'"
+                        :class="(u.isActive ?? u.active) ? 'text-success' : 'text-secondary'"
+                      >
+                        {{ (u.isActive ?? u.active) ? "Oui" : "Non" }}
                       </span>
+                      <span v-else class="text-warning">Inconnu</span>
                     </div>
                   </div>
 
-                  <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" @click="editUser(u)">
+                  <!-- ✅ Si soft deleted => message à la place des boutons -->
+                  <div v-if="isSoftDeleted(u)" class="text-muted small">
+                    Compte supprimé
+                  </div>
+
+                  <!-- ✅ Sinon => boutons normaux -->
+                  <div v-else class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" @click="editUser(u)" :disabled="loading" title="Éditer">
                       Éditer
                     </button>
-                    <button class="btn btn-outline-secondary" @click="toggleActive(u)" :disabled="loading">
+
+                    <button class="btn btn-outline-secondary" @click="toggleActive(u)" :disabled="loading" title="Activer/Désactiver">
                       Toggle
+                    </button>
+
+                    <button
+                      class="btn btn-outline-danger"
+                      @click="softDeleteUser(u)"
+                      :disabled="loading || deleting"
+                      title="Supprimer (soft delete)"
+                    >
+                      <span v-if="deletingId === u.id" class="spinner-border spinner-border-sm me-1"></span>
+                      Supprimer
                     </button>
                   </div>
                 </div>
-
               </div>
 
               <div v-else-if="!loading" class="text-center text-muted py-4">
                 Aucun utilisateur.
               </div>
-
 
               <div class="text-muted small">
                 Note : on ne gère pas le mot de passe ici (non exposé dans <code>user:write</code>).

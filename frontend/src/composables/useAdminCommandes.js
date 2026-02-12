@@ -19,41 +19,6 @@ export function useAdminCommandes() {
       "Erreur inconnue"
   }
 
-  async function updateStatut(cmd, newStatut) {
-    error.value = ""
-
-    try {
-      const token = localStorage.getItem("token")
-      if (!token) throw new Error("Token manquant (non connecté ?)")
-
-      const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
-      if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
-
-      const res = await api.patch(
-        iri,
-        { statut: newStatut },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/merge-patch+json",
-          },
-        }
-      )
-
-      // MAJ selected si ouvert
-      if (selected.value?.id === cmd.id) {
-        selected.value = res.data
-      }
-
-      // MAJ liste locale (pour éviter refresh)
-      const idx = commandes.value.findIndex((c) => c.id === cmd.id)
-      if (idx !== -1) commandes.value[idx] = { ...commandes.value[idx], statut: newStatut }
-    } catch (e) {
-      setError(e)
-    }
-  }
-
-
   function setDetailsError(e) {
     detailsError.value =
       e?.response?.data?.detail ||
@@ -66,6 +31,23 @@ export function useAdminCommandes() {
     const token = localStorage.getItem("token")
     if (!token) throw new Error("Token manquant (non connecté ?)")
     return token
+  }
+
+  // ✅ helpers user (affichage + recherche)
+  function userLabel(u) {
+    if (!u) return "—"
+    const full = `${u?.prenom ?? ""} ${u?.nom ?? ""}`.trim()
+    if (full) return full
+    return u?.email ?? "—"
+  }
+
+  function userEmail(u) {
+    return u?.email ?? "—"
+  }
+
+  function userIsDeleted(u) {
+    // après soft delete: isActive=false, email devient deleted+...
+    return u?.isActive === false
   }
 
   async function loadCommandes() {
@@ -95,7 +77,6 @@ export function useAdminCommandes() {
     try {
       const token = getTokenOrThrow()
 
-      // cmd["@id"] = "/api/admin/commandes/5"
       const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
       if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
 
@@ -111,7 +92,39 @@ export function useAdminCommandes() {
     }
   }
 
-  // ✅ SUPPRESSION ADMIN
+  async function updateStatut(cmd, newStatut) {
+    error.value = ""
+
+    try {
+      const token = getTokenOrThrow()
+
+      const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
+      if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
+
+      const res = await api.patch(
+        iri,
+        { statut: newStatut },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/merge-patch+json",
+          },
+        }
+      )
+
+      // MAJ selected si ouvert
+      if (selected.value?.id === cmd.id) {
+        selected.value = res.data
+      }
+
+      // MAJ liste locale (statut seulement, le reste ne change pas)
+      const idx = commandes.value.findIndex((c) => c.id === cmd.id)
+      if (idx !== -1) commandes.value[idx] = { ...commandes.value[idx], statut: newStatut }
+    } catch (e) {
+      setError(e)
+    }
+  }
+
   async function removeCommande(cmd) {
     error.value = ""
     detailsError.value = ""
@@ -122,19 +135,16 @@ export function useAdminCommandes() {
       const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
       if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
 
-      // supprime côté API
       await api.delete(iri, {
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      // MAJ liste locale
       const id = cmd?.id ?? selected.value?.id
       if (id != null) {
         commandes.value = commandes.value.filter((c) => c.id !== id)
       }
 
-      // fermer le détail si c'est la commande affichée
-      if (selected.value && (selected.value.id === id)) {
+      if (selected.value && selected.value.id === id) {
         selected.value = null
       }
     } catch (e) {
@@ -172,11 +182,19 @@ export function useAdminCommandes() {
     if (!q) return commandes.value
 
     return commandes.value.filter((c) => {
+      const u = c?.user
+
       const hay = [
         String(c?.id ?? ""),
         String(c?.statut ?? ""),
         String(c?.dateCommande ?? ""),
         String(c?.dateRetrait ?? ""),
+
+        // ✅ recherche client
+        String(u?.prenom ?? ""),
+        String(u?.nom ?? ""),
+        String(u?.email ?? ""),
+        String(u?.isActive ?? ""),
       ]
         .join(" ")
         .toLowerCase()
@@ -198,10 +216,16 @@ export function useAdminCommandes() {
     loadCommandes,
     openDetails,
     closeDetails,
-    removeCommande, // ✅ EXPORT
+    removeCommande,
     updateStatut,
+
     filteredCommandes,
     formatDateTime,
     formatDateOnly,
+
+    // ✅ helpers user
+    userLabel,
+    userEmail,
+    userIsDeleted,
   }
 }

@@ -7,11 +7,16 @@ export function useAdminUsersCrud() {
   const loading = ref(false)
   const error = ref("")
 
+  // ✅ suppression admin
+  const deleting = ref(false)
+  const deletingId = ref(null)
+  const deleteError = ref("")
+
   const search = ref("")
   const sortKey = ref("id")
   const sortDir = ref("asc")
 
-  const mode = ref("edit") // on fait surtout "edit" (pas de création pour l’instant)
+  const mode = ref("edit")
   const form = reactive({
     id: null,
     iri: null,
@@ -22,7 +27,6 @@ export function useAdminUsersCrud() {
     whatsapp: "",
     isActive: true,
 
-    // UI: string "ROLE_USER,ROLE_ADMIN" => array API
     rolesText: "ROLE_USER",
   })
 
@@ -46,9 +50,18 @@ export function useAdminUsersCrud() {
       "Erreur inconnue"
   }
 
+  function setDeleteError(e) {
+    deleteError.value =
+      e?.response?.data?.detail ||
+      e?.response?.data?.message ||
+      e?.message ||
+      "Erreur lors de la suppression"
+  }
+
   async function loadUsers() {
     loading.value = true
     error.value = ""
+    deleteError.value = ""
     try {
       const res = await api.get("/api/users")
       const data = res.data
@@ -57,9 +70,14 @@ export function useAdminUsersCrud() {
         ? data
         : (data?.member ?? data?.["hydra:member"] ?? [])
 
-      console.log("DEBUG users.value =", users.value)
-      console.log("DEBUG first user =", users.value?.[0])
-      console.log("DEBUG keys =", Object.keys(users.value?.[0] || {}))
+      // ✅ Normalisation : certaines API renvoient "active" au lieu de "isActive"
+      users.value = users.value.map((u) => ({
+        ...u,
+        isActive:
+          typeof u.isActive === "boolean"
+            ? u.isActive
+            : (typeof u.active === "boolean" ? u.active : true),
+      }))
     } catch (e) {
       setError(e)
     } finally {
@@ -69,6 +87,9 @@ export function useAdminUsersCrud() {
 
 
   function editUser(u) {
+    // ✅ si déjà supprimé, on ne permet pas l’édition
+    if (u?.isActive === false) return
+
     mode.value = "edit"
     form.id = u.id ?? null
     form.iri = u["@id"] ?? null
@@ -80,8 +101,6 @@ export function useAdminUsersCrud() {
     form.isActive = typeof u.isActive === "boolean" ? u.isActive : true
 
     const roles = Array.isArray(u.roles) ? u.roles : []
-    // ton getRoles ajoute ROLE_USER automatiquement côté PHP, mais l’API peut renvoyer roles sans ROLE_USER.
-    // on normalise juste pour l’UI.
     const normalized = roles.length ? roles : ["ROLE_USER"]
     form.rolesText = normalized.join(",")
   }
@@ -91,9 +110,7 @@ export function useAdminUsersCrud() {
       .split(",")
       .map((r) => r.trim())
       .filter(Boolean)
-    // on s’assure que ROLE_USER existe
     if (!roles.includes("ROLE_USER")) roles.push("ROLE_USER")
-    // unique
     return [...new Set(roles)]
   }
 
@@ -105,6 +122,12 @@ export function useAdminUsersCrud() {
   }
 
   async function submitForm() {
+    // ✅ si déjà supprimé, on bloque
+    if (form.isActive === false) {
+      alert("Ce compte est supprimé (désactivé). Modification impossible.")
+      return
+    }
+
     const msg = validate()
     if (msg) {
       alert(msg)
@@ -119,19 +142,18 @@ export function useAdminUsersCrud() {
         nom: String(form.nom).trim(),
         prenom: String(form.prenom).trim(),
         whatsapp: form.whatsapp ? String(form.whatsapp).trim() : null,
+        active: !!form.isActive,
         isActive: !!form.isActive,
+
         roles: parseRoles(form.rolesText),
       }
 
       const url = form.iri || `/api/users/${form.id}`
-      // PUT: remplace les champs (sans password)
       await api.put(url, payload)
-
 
       resetForm()
       await loadUsers()
     } catch (e) {
-      console.error("SUBMIT ERROR:", e?.response?.status, e?.response?.data || e)
       setError(e)
     } finally {
       loading.value = false
@@ -143,35 +165,33 @@ export function useAdminUsersCrud() {
     error.value = ""
 
     const url = u["@id"] || `/api/users/${u.id}`
-    console.log("TOGGLE URL:", url, "current:", u.isActive, "next:", !u.isActive)
+
+    // ✅ on prend "active" si présent, sinon "isActive"
+    const current =
+      typeof u.active === "boolean"
+        ? u.active
+        : (typeof u.isActive === "boolean" ? u.isActive : true)
+
+    const next = !current
 
     try {
-      // 1) tentative PATCH merge-patch
-      try {
-        await api.patch(
-          url,
-          { isActive: !u.isActive },
-          { headers: { "Content-Type": "application/merge-patch+json" } }
-        )
-      } catch (e) {
-        console.warn("PATCH failed:", e?.response?.status, e?.response?.data || e)
+      await api.patch(
+        url,
+        { active: next, isActive: next }, // on envoie les deux, l'API prendra celui qu'elle connaît
+        { headers: { "Content-Type": "application/merge-patch+json" } }
+      )
 
-        // fallback PUT
-        const payload = {
-          email: u.email ?? "",
-          nom: u.nom ?? "",
-          prenom: u.prenom ?? "",
-          whatsapp: u.whatsapp ?? null,
-          isActive: !u.isActive,
-          roles: Array.isArray(u.roles) ? u.roles : ["ROLE_USER"],
-        }
-
-        await api.put(url, payload)
+      // ✅ mise à jour immédiate de la liste (sinon 2e clic bug)
+      const idx = users.value.findIndex((x) => x.id === u.id)
+      if (idx !== -1) {
+        users.value[idx] = { ...users.value[idx], active: next, isActive: next }
       }
 
-      await loadUsers()
+      // ✅ si le user est actuellement dans le formulaire d'édition, on met à jour la checkbox aussi
+      if (form.id === u.id) {
+        form.isActive = next
+      }
     } catch (e) {
-      console.error("TOGGLE ERROR:", e?.response?.status, e?.response?.data || e)
       setError(e)
     } finally {
       loading.value = false
@@ -179,6 +199,46 @@ export function useAdminUsersCrud() {
   }
 
 
+
+
+  // ✅ DELETE admin : soft delete via API Platform
+  async function softDeleteUser(u) {
+    deleteError.value = ""
+
+    if (!u?.id) {
+      deleteError.value = "User id manquant."
+      return
+    }
+
+    if (u.isActive === false) return
+
+    const ok = confirm(
+      `⚠️ Supprimer (désactiver) ce compte ?\n\nEmail: ${u.email}\n\n` +
+      "- Compte désactivé\n" +
+      "- Données anonymisées\n" +
+      "- Email libéré\n" +
+      "- Favoris supprimés\n" +
+      "- Commandes en_attente / prete annulées\n\n" +
+      "Continuer ?"
+    )
+    if (!ok) return
+
+    deleting.value = true
+    deletingId.value = u.id
+
+    try {
+      await api.delete(`/api/users/${u.id}`)
+      // refresh
+      await loadUsers()
+      // si on éditait ce user, on reset
+      if (form.id === u.id) resetForm()
+    } catch (e) {
+      setDeleteError(e)
+    } finally {
+      deleting.value = false
+      deletingId.value = null
+    }
+  }
 
   function toggleSort(key) {
     if (sortKey.value === key) {
@@ -192,7 +252,6 @@ export function useAdminUsersCrud() {
   const filteredSortedUsers = computed(() => {
     const q = search.value.trim().toLowerCase()
     let arr = Array.isArray(users.value) ? users.value : []
-
 
     if (q) {
       arr = arr.filter((u) => {
@@ -230,6 +289,13 @@ export function useAdminUsersCrud() {
     users,
     loading,
     error,
+
+    // ✅ delete
+    deleting,
+    deletingId,
+    deleteError,
+    softDeleteUser,
+
     search,
     sortKey,
     sortDir,

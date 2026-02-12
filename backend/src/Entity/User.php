@@ -19,7 +19,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ApiResource(
     operations: [
-        // ✅ Public : inscription
+        // ✅ Inscription publique
         new Post(
             uriTemplate: '/register',
             security: "is_granted('PUBLIC_ACCESS')",
@@ -28,24 +28,17 @@ use Symfony\Component\Serializer\Attribute\Groups;
             normalizationContext: ['groups' => ['user:read']]
         ),
 
-        new \ApiPlatform\Metadata\Delete(
-            security: "is_granted('ROLE_ADMIN') or object == user",
-            processor: \App\State\UserSoftDeleteProcessor::class
-        ),
-
-
-        // ✅ Admin only : gestion users
-        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
-        new Get(security: "is_granted('ROLE_ADMIN')"),
-        new Put(security: "is_granted('ROLE_ADMIN')"),
-        new Patch(security: "is_granted('ROLE_ADMIN') or object == user"),
-
+        // ✅ Soft delete (admin OU utilisateur lui-même)
         new Delete(
             security: "is_granted('ROLE_ADMIN') or object == user",
             processor: \App\State\UserSoftDeleteProcessor::class
         ),
 
-
+        // ✅ Admin only
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Get(security: "is_granted('ROLE_ADMIN')"),
+        new Put(security: "is_granted('ROLE_ADMIN')"),
+        new Patch(security: "is_granted('ROLE_ADMIN') or object == user"),
     ],
     normalizationContext: ['groups' => ['user:read']],
     denormalizationContext: ['groups' => ['user:write']],
@@ -58,50 +51,46 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'admin:commande:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
-    #[Groups(['user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write', 'admin:commande:read'])]
     private ?string $email = null;
 
     /**
-     * @var list<string> The user roles
+     * @var list<string>
      */
     #[ORM\Column]
-    #[Groups(['user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write', 'admin:commande:read'])]
     private array $roles = [];
 
-    /**
-     * @var string The hashed password
-     */
     #[ORM\Column]
     private ?string $password = null;
 
-    // ✅ Mot de passe en clair (non persisté) pour l'inscription
+    // mot de passe en clair (inscription uniquement)
     #[Groups(['user:write'])]
     private ?string $plainPassword = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write', 'admin:commande:read'])]
     private ?string $nom = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['user:read', 'user:write'])]
+    #[Groups(['user:read', 'user:write', 'admin:commande:read'])]
     private ?string $prenom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
     #[Groups(['user:read', 'user:write'])]
     private ?string $whatsapp = null;
 
-    #[ORM\Column(options: ["default" => true])]
-    #[Groups(['user:read', 'user:write'])]
+    #[ORM\Column(options: ['default' => true])]
+    #[Groups(['user:read', 'user:write', 'admin:commande:read'])]
     private bool $isActive = true;
 
     #[ORM\Column(nullable: true)]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'admin:commande:read'])]
     private ?\DateTimeImmutable $deletedAt = null;
-
 
     /**
      * @var Collection<int, Produit>
@@ -122,6 +111,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->favoris = new ArrayCollection();
         $this->commandes = new ArrayCollection();
     }
+
+    /* =======================
+       GETTERS / SETTERS
+       ======================= */
 
     public function getId(): ?int
     {
@@ -162,42 +155,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
     }
 
-
-
-    /**
-     * A visual identifier that represents this user.
-     *
-     * @see UserInterface
-     */
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
     }
 
-    /**
-     * @see UserInterface
-     */
     public function getRoles(): array
     {
         $roles = $this->roles;
-        // guarantee every user at least has ROLE_USER
         $roles[] = 'ROLE_USER';
-
         return array_unique($roles);
     }
 
-    /**
-     * @param list<string> $roles
-     */
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
         return $this;
     }
 
-    /**
-     * @see PasswordAuthenticatedUserInterface
-     */
     public function getPassword(): ?string
     {
         return $this->password;
@@ -209,7 +184,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    // ✅ plainPassword (écriture uniquement)
     public function getPlainPassword(): ?string
     {
         return $this->plainPassword;
@@ -221,22 +195,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    /**
-     * Ensure the session doesn't contain actual password hashes by CRC32C-hashing them, as supported since Symfony 7.3.
-     */
     public function __serialize(): array
     {
         $data = (array) $this;
         $data["\0" . self::class . "\0password"] = hash('crc32c', $this->password);
-
         return $data;
     }
 
-    #[\Deprecated]
-    public function eraseCredentials(): void
-    {
-        // @deprecated, to be removed when upgrading to Symfony 8
-    }
+    public function eraseCredentials(): void {}
 
     public function getNom(): ?string
     {
@@ -271,11 +237,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getIsActive(): bool
-    {
-        return $this->isActive;
-    }
-
     public function isActive(): bool
     {
         return $this->isActive;
@@ -299,9 +260,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->favoris->contains($favori)) {
             $this->favoris->add($favori);
-            $favori->addFavori($this); // garde les 2 côtés sync
+            $favori->addFavori($this);
         }
-
         return $this;
     }
 
@@ -310,7 +270,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         if ($this->favoris->removeElement($favori)) {
             $favori->removeFavori($this);
         }
-
         return $this;
     }
 
@@ -320,26 +279,5 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getCommandes(): Collection
     {
         return $this->commandes;
-    }
-
-    public function addCommande(Commande $commande): static
-    {
-        if (!$this->commandes->contains($commande)) {
-            $this->commandes->add($commande);
-            $commande->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeCommande(Commande $commande): static
-    {
-        if ($this->commandes->removeElement($commande)) {
-            if ($commande->getUser() === $this) {
-                $commande->setUser(null);
-            }
-        }
-
-        return $this;
     }
 }

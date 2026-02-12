@@ -22,6 +22,9 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ApiResource(
     operations: [
+        // =========================
+        // ADMIN
+        // =========================
         new GetCollection(
             uriTemplate: '/admin/commandes',
             security: "is_granted('ROLE_ADMIN')",
@@ -36,7 +39,16 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
             uriTemplate: '/admin/commandes/{id}',
             security: "is_granted('ROLE_ADMIN')"
         ),
+        new Patch(
+            uriTemplate: '/admin/commandes/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['admin:commande:write']],
+            normalizationContext: ['groups' => ['admin:commande:read']]
+        ),
 
+        // =========================
+        // USER / OWNER
+        // =========================
         new Get(
             uriTemplate: '/commandes/{id}',
             security: "object.getUser() == user or is_granted('ROLE_ADMIN')",
@@ -54,13 +66,6 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
             security: "is_granted('ROLE_USER')"
         ),
 
-        new Patch(
-            uriTemplate: '/admin/commandes/{id}',
-            security: "is_granted('ROLE_ADMIN')",
-            denormalizationContext: ['groups' => ['admin:commande:write']],
-            normalizationContext: ['groups' => ['admin:commande:read']]
-        ),
-
         new Post(
             security: "is_granted('ROLE_USER')",
             output: false,
@@ -73,7 +78,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 class Commande
 {
-    // ✅ Constantes (évite les strings partout)
+    // ✅ Constantes de statuts
     public const STATUT_EN_ATTENTE = 'en_attente';
     public const STATUT_PRETE      = 'prete';
     public const STATUT_RETIREE    = 'retiree';
@@ -108,7 +113,9 @@ class Commande
 
     #[ORM\ManyToOne(inversedBy: 'commandes')]
     #[ORM\JoinColumn(nullable: false)]
-    #[ApiProperty(readable: false, writable: false)]
+    // ✅ Visible uniquement en admin (pour afficher nom/email dans la liste)
+    #[ApiProperty(readable: true, writable: false)]
+    #[Groups(['admin:commande:read'])]
     private ?User $user = null;
 
     #[ORM\OneToMany(
@@ -127,10 +134,12 @@ class Commande
         $this->statut = self::STATUT_EN_ATTENTE;
     }
 
+    // =========================
+    // VALIDATION
+    // =========================
     #[Assert\Callback]
     public function validateDateRetrait(ExecutionContextInterface $context): void
     {
-        // obligatoire
         if (!$this->dateRetrait) {
             $context->buildViolation('Choisis une date de retrait.')
                 ->atPath('dateRetrait')
@@ -138,12 +147,9 @@ class Commande
             return;
         }
 
-        // minimum : demain
         $min = (new \DateTime('today'))->modify('+1 day');
-        // maximum : dans 7 jours
         $max = (new \DateTime('today'))->modify('+7 days');
 
-        // dateRetrait doit être entre min et max inclus
         if ($this->dateRetrait < $min) {
             $context->buildViolation('La date de retrait doit être au minimum le lendemain.')
                 ->atPath('dateRetrait')
@@ -157,6 +163,9 @@ class Commande
         }
     }
 
+    // =========================
+    // GETTERS / SETTERS
+    // =========================
     public function getId(): ?int
     {
         return $this->id;
@@ -233,14 +242,9 @@ class Commande
         return $this;
     }
 
-    // ==========================================================
-    // ✅ Logique métier pour suppression de compte (soft delete)
-    // ==========================================================
-
-    /**
-     * Une commande est "terminée" si elle ne doit plus être modifiée.
-     * Ici : retirée / refusée / annulée.
-     */
+    // =========================
+    // LOGIQUE METIER (soft delete user)
+    // =========================
     public function isTerminee(): bool
     {
         return in_array($this->statut, [
@@ -250,10 +254,6 @@ class Commande
         ], true);
     }
 
-    /**
-     * Annule la commande uniquement si elle n'est pas terminée.
-     * (en_attente ou prete => annulee)
-     */
     public function annulerSiNonTerminee(): void
     {
         if (!$this->isTerminee()) {
