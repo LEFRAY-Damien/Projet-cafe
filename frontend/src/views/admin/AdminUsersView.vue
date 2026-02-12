@@ -1,10 +1,13 @@
 <script setup>
-import { onMounted } from "vue"
+import { onMounted, ref, computed } from "vue"
 import { useAdminUsersCrud } from "../../composables/useAdminUsersCrud"
 
 function isSoftDeleted(u) {
   return !!u.deletedAt || String(u?.email || "").startsWith("deleted+")
 }
+
+// ✅ Switch
+const showDeleted = ref(false)
 
 const {
   loading,
@@ -30,6 +33,12 @@ const {
 } = useAdminUsersCrud()
 
 onMounted(() => loadUsers())
+
+// ✅ Liste affichée (cache les supprimés si switch OFF)
+const displayedUsers = computed(() => {
+  const list = filteredSortedUsers.value || []
+  return showDeleted.value ? list : list.filter((u) => !isSoftDeleted(u))
+})
 </script>
 
 <template>
@@ -115,13 +124,27 @@ onMounted(() => loadUsers())
               <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <h2 class="h5 mb-0">Utilisateurs</h2>
 
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
                   <input
                     v-model="search"
                     class="form-control"
                     style="max-width: 320px"
                     placeholder="Rechercher (email, nom, rôle...)"
                   />
+
+                  <!-- ✅ Switch -->
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="showDeleted"
+                      v-model="showDeleted"
+                    />
+                    <label class="form-check-label" for="showDeleted">
+                      Afficher supprimés
+                    </label>
+                  </div>
+
                   <button class="btn btn-outline-primary" @click="loadUsers" :disabled="loading">
                     Rafraîchir
                   </button>
@@ -132,9 +155,9 @@ onMounted(() => loadUsers())
               <div v-if="deleteError" class="alert alert-danger py-2">{{ deleteError }}</div>
               <div v-if="loading" class="text-muted mb-2">Chargement...</div>
 
-              <div v-if="!loading && filteredSortedUsers.length" class="list-group list-group-flush">
+              <div v-if="!loading && displayedUsers.length" class="list-group list-group-flush">
                 <div
-                  v-for="u in filteredSortedUsers"
+                  v-for="u in displayedUsers"
                   :key="u.id"
                   class="list-group-item d-flex justify-content-between align-items-center"
                 >
@@ -171,7 +194,12 @@ onMounted(() => loadUsers())
                       Éditer
                     </button>
 
-                    <button class="btn btn-outline-secondary" @click="toggleActive(u)" :disabled="loading" title="Activer/Désactiver">
+                    <button
+                      class="btn btn-outline-secondary"
+                      @click="toggleActive(u)"
+                      :disabled="loading"
+                      title="Activer/Désactiver"
+                    >
                       Toggle
                     </button>
 
