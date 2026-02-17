@@ -7,7 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -23,11 +23,17 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new GetCollection(),
         new Post(security: "is_granted('ROLE_ADMIN')"),
         new Put(security: "is_granted('ROLE_ADMIN')"),
+        new Patch(
+            security: "is_granted('ROLE_ADMIN')",
+            inputFormats: ['json' => ['application/merge-patch+json']]
+        ),
         new Delete(security: "is_granted('ROLE_ADMIN')"),
     ],
     normalizationContext: ['groups' => ['produit:read']],
     denormalizationContext: ['groups' => ['produit:write']]
 )]
+
+
 #[ORM\Entity(repositoryClass: ProduitRepository::class)]
 class Produit
 {

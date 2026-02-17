@@ -1,58 +1,160 @@
-import { computed, reactive, ref } from "vue"
-import axios from "axios"
+import { computed, reactive, ref, watch } from "vue"
+import api from "@/api/axios"
 
-export function useAdminImagesCrud() {
-  const images = ref([])
+export function useAdminProduitsCrud() {
   const produits = ref([])
+  const categories = ref([])
 
   const loading = ref(false)
   const error = ref("")
+  const success = ref("")
 
   const search = ref("")
   const sortKey = ref("id")
   const sortDir = ref("asc")
 
   const mode = ref("create") // create | edit
+
+  const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
+
+  function setSuccess(msg) {
+    success.value = msg
+    setTimeout(() => (success.value = ""), 2500)
+  }
+
+  function absolutizeUrl(u) {
+    if (!u) return null
+    if (typeof u === "string" && u.startsWith("/")) {
+      return `${api.defaults.baseURL}${u}`
+    }
+    return u
+  }
+
+  async function resolveImageIri(iri) {
+    if (imageUrlCache.value[iri]) return imageUrlCache.value[iri]
+
+    const { data } = await api.get(iri)
+
+    const url =
+      data.url ??
+      data.contentUrl ??
+      (data.path ? data.path : null)
+
+    const absolute = absolutizeUrl(url)
+    imageUrlCache.value[iri] = absolute
+    return absolute
+  }
+
+  function firstImageUrl(p) {
+    const img = p.images?.[0]
+    if (!img) return null
+
+    if (typeof img === "string") {
+      resolveImageIri(img)
+      return imageUrlCache.value[img] ?? null
+    }
+
+    if (img.url) return absolutizeUrl(img.url)
+    if (img.contentUrl) return absolutizeUrl(img.contentUrl)
+    if (img.path) return absolutizeUrl(img.path)
+
+    return null
+  }
+
   const form = reactive({
     id: null,
     iri: null,
-    url: "",
-    alt: "",
-    produitIri: "",
+
+    nom: "",
+    description: "",
+    prix: "",
+    disponible: true,
+    categorieIri: "",
+
+    // image
+    imageMode: "url", // "url" | "file"
+    imageFile: null, // File
+    imageUrl: "",
+    imageAlt: "",
+  })
+
+  // ✅ IMPORTANT: produit en cours d'édition (ne dépend pas du search)
+  const currentProduit = computed(() => {
+    if (!form.iri) return null
+    return produits.value.find((p) => p["@id"] === form.iri) ?? null
+  })
+
+  // Preview (URL ou File)
+  const imagePreview = computed(() => {
+    if (form.imageMode === "url") {
+      const u = String(form.imageUrl ?? "").trim()
+      return u || null
+    }
+    if (form.imageMode === "file" && form.imageFile) {
+      return URL.createObjectURL(form.imageFile)
+    }
+    return null
+  })
+
+  watch(
+    () => form.imageFile,
+    () => {
+      // pas de revoke ici (ok pour admin)
+    }
+  )
+
+  const canAddImageNow = computed(() => {
+    if (!form.iri) return false
+    if (form.imageMode === "url") return !!String(form.imageUrl ?? "").trim()
+    if (form.imageMode === "file") return !!form.imageFile
+    return false
   })
 
   function resetForm() {
     mode.value = "create"
     form.id = null
     form.iri = null
-    form.url = ""
-    form.alt = ""
-    form.produitIri = ""
+    form.nom = ""
+    form.description = ""
+    form.prix = ""
+    form.disponible = true
+    form.categorieIri = ""
+
+    form.imageMode = "url"
+    form.imageFile = null
+    form.imageUrl = ""
+    form.imageAlt = ""
+
+    error.value = ""
   }
 
   function setError(e) {
     error.value =
       e?.response?.data?.detail ||
+      e?.response?.data?.["hydra:description"] ||
       e?.response?.data?.message ||
       e?.message ||
       "Erreur inconnue"
   }
 
+  async function loadCategories() {
+    try {
+      const res = await api.get("/api/categories")
+      categories.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+    } catch (e) {
+      setError(e)
+    }
+  }
+
   async function loadProduits() {
-    const res = await axios.get("/api/produits")
-    produits.value = res.data?.["hydra:member"] ?? res.data ?? []
-  }
-
-  async function loadImages() {
-    const res = await axios.get("/api/images")
-    images.value = res.data?.["hydra:member"] ?? res.data ?? []
-  }
-
-  async function init() {
     loading.value = true
     error.value = ""
     try {
-      await Promise.all([loadProduits(), loadImages()])
+      const res = await api.get("/api/produits")
+      produits.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+
+      // ✅ reset cache images après refresh (évite "Pas d'image" après suppression/ajout)
+      imageUrlCache.value = {}
     } catch (e) {
       setError(e)
     } finally {
@@ -60,27 +162,50 @@ export function useAdminImagesCrud() {
     }
   }
 
-  function editImage(img) {
-    mode.value = "edit"
-    form.id = img.id ?? null
-    form.iri = img["@id"] ?? null
-
-    form.url = img.url ?? ""
-    form.alt = img.alt ?? ""
-
-    if (typeof img.produit === "string") form.produitIri = img.produit
-    else form.produitIri = img.produit?.["@id"] ?? ""
-  }
-
-  async function removeImage(img) {
-    if (!confirm("Supprimer cette image ?")) return
+  async function init() {
     loading.value = true
     error.value = ""
     try {
-      const url = img["@id"] || `/api/images/${img.id}`
-      await axios.delete(url)
-      await loadImages()
-      if (mode.value === "edit" && (form.id === img.id || form.iri === img["@id"])) resetForm()
+      await loadCategories()
+      await loadProduits()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function editProduit(p) {
+    mode.value = "edit"
+    form.id = p.id ?? null
+    form.iri = p["@id"] ?? null
+
+    form.nom = p.nom ?? ""
+    form.description = p.description ?? ""
+    form.prix = p.prix ?? ""
+    form.disponible = typeof p.disponible === "boolean" ? p.disponible : true
+
+    if (typeof p.categorie === "string") form.categorieIri = p.categorie
+    else form.categorieIri = p.categorie?.["@id"] ?? ""
+
+    // champs image = champs d'ajout
+    form.imageMode = "url"
+    form.imageFile = null
+    form.imageUrl = ""
+    form.imageAlt = ""
+  }
+
+  async function removeProduit(p) {
+    if (!confirm("Supprimer ce produit ?")) return
+    loading.value = true
+    error.value = ""
+    try {
+      const url = p["@id"] || `/api/produits/${p.id}`
+      await api.delete(url)
+      await loadProduits()
+      setSuccess("Produit supprimé ✅")
+
+      if (mode.value === "edit" && (form.id === p.id || form.iri === p["@id"])) {
+        resetForm()
+      }
     } catch (e) {
       setError(e)
     } finally {
@@ -89,15 +214,112 @@ export function useAdminImagesCrud() {
   }
 
   function validate() {
-    const u = String(form.url).trim()
-    if (!u) return "L'URL est obligatoire."
-    if (!/^https?:\/\//i.test(u) && !u.startsWith("/")) {
-      return "L'URL doit commencer par http(s):// ou /"
-    }
-    if (!form.produitIri) return "Le produit est obligatoire."
+    if (!String(form.nom).trim()) return "Le nom est obligatoire."
+    if (!String(form.description).trim()) return "La description est obligatoire."
+    const prixNumber = Number(form.prix)
+    if (Number.isNaN(prixNumber) || prixNumber < 0) return "Le prix doit être un nombre >= 0."
+    if (!form.categorieIri) return "La catégorie est obligatoire."
     return ""
   }
 
+  function payloadFromForm() {
+    return {
+      nom: String(form.nom).trim(),
+      description: String(form.description).trim(),
+      prix: Number(form.prix),
+      disponible: !!form.disponible,
+      categorie: form.categorieIri,
+    }
+  }
+
+  // Upload fichier -> /api/images/upload
+  async function uploadImageFile(produitIri) {
+    if (!form.imageFile) throw new Error("Aucun fichier sélectionné.")
+
+    const fd = new FormData()
+    fd.append("file", form.imageFile)
+    fd.append("produit", produitIri)
+    if (String(form.imageAlt ?? "").trim()) fd.append("alt", String(form.imageAlt).trim())
+
+    await api.post("/api/images/upload", fd, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Accept: "application/ld+json",
+      },
+    })
+  }
+
+  // ✅ Ajout image (mode EDIT) : URL ou FILE
+  async function addImageToCurrentProduct() {
+    if (!form.iri) {
+      alert("Tu dois d'abord enregistrer le produit, puis l'éditer.")
+      return
+    }
+
+    loading.value = true
+    error.value = ""
+    try {
+      if (form.imageMode === "file") {
+        if (!form.imageFile) {
+          alert("Choisis un fichier image.")
+          return
+        }
+        await uploadImageFile(form.iri)
+        form.imageFile = null
+        form.imageAlt = ""
+        setSuccess("Image uploadée ✅")
+      } else {
+        const url = String(form.imageUrl ?? "").trim()
+        const alt = String(form.imageAlt ?? "").trim() || null
+
+        if (!url) {
+          alert("URL de l'image obligatoire.")
+          return
+        }
+
+        await api.post("/api/images", { url, alt, produit: form.iri })
+        form.imageUrl = ""
+        form.imageAlt = ""
+        setSuccess("Image ajoutée ✅")
+      }
+
+      // ✅ reset cache + reload produits (sinon preview peut rester vide)
+      imageUrlCache.value = {}
+      await loadProduits()
+    } catch (e) {
+      setError(e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function removeImage(img) {
+    if (!confirm("Supprimer cette image ?")) return
+
+    loading.value = true
+    error.value = ""
+    try {
+      const iri = typeof img === "string" ? img : img?.["@id"]
+      if (!iri) {
+        alert("Impossible de trouver l'IRI de l'image.")
+        return
+      }
+
+      await api.delete(iri)
+
+      // ✅ reset cache + reload produits
+      imageUrlCache.value = {}
+      await loadProduits()
+
+      setSuccess("Image supprimée ✅")
+    } catch (e) {
+      setError(e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // ✅ Submit produit : en CREATE, on peut aussi créer l'image (URL ou FILE)
   async function submitForm() {
     const msg = validate()
     if (msg) {
@@ -108,21 +330,62 @@ export function useAdminImagesCrud() {
     loading.value = true
     error.value = ""
     try {
-      const payload = {
-        url: String(form.url).trim(),
-        alt: String(form.alt).trim() || null,
-        produit: form.produitIri,
-      }
+      const payload = payloadFromForm()
 
       if (mode.value === "create") {
-        await axios.post("/api/images", payload)
-      } else {
-        const url = form.iri || `/api/images/${form.id}`
-        await axios.put(url, payload) // PUT (comme tes autres entités)
-      }
+        // 1) créer le produit
+        const res = await api.post("/api/produits", payload)
+        const produitIri = res.data?.["@id"] || null
 
-      resetForm()
-      await loadImages()
+        // 2) image optionnelle
+        if (produitIri) {
+          if (form.imageMode === "file" && form.imageFile) {
+            await uploadImageFile(produitIri)
+            form.imageFile = null
+            setSuccess("Produit + image uploadée ✅")
+          } else if (form.imageMode === "url") {
+            const imgUrl = String(form.imageUrl ?? "").trim()
+            const imgAlt = String(form.imageAlt ?? "").trim() || null
+            if (imgUrl) {
+              await api.post("/api/images", { url: imgUrl, alt: imgAlt, produit: produitIri })
+              setSuccess("Produit + image ajoutée ✅")
+            } else {
+              setSuccess("Produit créé ✅")
+            }
+          } else {
+            setSuccess("Produit créé ✅")
+          }
+        } else {
+          setSuccess("Produit créé ✅")
+        }
+
+        // reset champs image après création
+        form.imageUrl = ""
+        form.imageAlt = ""
+        form.imageMode = "url"
+
+        // refresh + passer en edit sur le produit créé
+        imageUrlCache.value = {}
+        await loadProduits()
+
+        const fresh = produitIri ? produits.value.find((p) => p["@id"] === produitIri) : null
+        if (fresh) editProduit(fresh)
+        else resetForm()
+      } else {
+        const url = form.iri || `/api/produits/${form.id}`
+        await api.put(url, payload)
+
+        const keepIri = form.iri
+
+        imageUrlCache.value = {}
+        await loadProduits()
+
+        const fresh = keepIri ? produits.value.find((p) => p["@id"] === keepIri) : null
+
+        setSuccess("Produit enregistré ✅")
+        if (fresh) editProduit(fresh)
+        else resetForm()
+      }
     } catch (e) {
       setError(e)
     } finally {
@@ -139,15 +402,15 @@ export function useAdminImagesCrud() {
     }
   }
 
-  const filteredSortedImages = computed(() => {
+  const filteredSortedProduits = computed(() => {
     const q = search.value.trim().toLowerCase()
-    let arr = images.value
+    let arr = Array.isArray(produits.value) ? produits.value : []
 
     if (q) {
-      arr = arr.filter((i) => {
-        const url = String(i.url ?? "").toLowerCase()
-        const alt = String(i.alt ?? "").toLowerCase()
-        return url.includes(q) || alt.includes(q)
+      arr = arr.filter((p) => {
+        const nom = String(p.nom ?? "").toLowerCase()
+        const desc = String(p.description ?? "").toLowerCase()
+        return nom.includes(q) || desc.includes(q)
       })
     }
 
@@ -161,30 +424,48 @@ export function useAdminImagesCrud() {
     })
   })
 
-  function produitLabel(img) {
-    const val = img?.produit
-    const iri = typeof val === "string" ? val : val?.["@id"]
-    const p = produits.value.find((x) => x["@id"] === iri)
-    return p?.nom ?? "—"
+  function categorieLabel(p) {
+    if (p?.categorie?.nom) return p.categorie.nom
+    if (typeof p?.categorie === "string") {
+      const c = categories.value.find((x) => x["@id"] === p.categorie)
+      return c?.nom ?? "—"
+    }
+    return "—"
   }
 
   return {
     produits,
-    images,
+    categories,
+
     loading,
     error,
+    success,
+
     search,
     sortKey,
     sortDir,
+
     mode,
     form,
-    filteredSortedImages,
+
+    // ✅ NEW
+    currentProduit,
+
+    imagePreview,
+    canAddImageNow,
+
+    filteredSortedProduits,
+
     init,
+    firstImageUrl,
     resetForm,
-    editImage,
-    removeImage,
+    editProduit,
+    removeProduit,
     submitForm,
     toggleSort,
-    produitLabel,
+    categorieLabel,
+
+    addImageToCurrentProduct,
+    removeImage,
   }
 }

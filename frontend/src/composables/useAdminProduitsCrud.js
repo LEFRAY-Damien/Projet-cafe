@@ -22,49 +22,78 @@ export function useAdminProduitsCrud() {
     setTimeout(() => (success.value = ""), 2500)
   }
 
+  function setError(e) {
+    error.value =
+      e?.response?.data?.detail ||
+      e?.response?.data?.["hydra:description"] ||
+      e?.response?.data?.message ||
+      e?.message ||
+      "Erreur inconnue"
+  }
+
+  // ✅ Cache-buster (force reload navigateur)
+  function withBust(u) {
+    if (!u) return null
+    const sep = u.includes("?") ? "&" : "?"
+    return `${u}${sep}v=${Date.now()}`
+  }
+
+  function absolutizeUrl(u) {
+    if (!u) return null
+    if (typeof u !== "string") return u
+
+    const s = u.trim()
+    if (!s) return null
+
+    // Déjà absolue
+    if (/^https?:\/\//i.test(s)) return s
+
+    // Base backend (sans slash final)
+    const base = String(api.defaults.baseURL || "").replace(/\/+$/, "")
+
+    // "/uploads/..." -> "http://localhost:8000/uploads/..."
+    if (s.startsWith("/")) return `${base}${s}`
+
+    // "uploads/..." ou "media/..." -> "http://localhost:8000/uploads/..."
+    return `${base}/${s.replace(/^\/+/, "")}`
+  }
+
   async function resolveImageIri(iri) {
     if (imageUrlCache.value[iri]) return imageUrlCache.value[iri]
 
     const { data } = await api.get(iri)
 
-    const url =
+    const raw =
+      data.publicUrl ??
       data.url ??
       data.contentUrl ??
-      (data.path ? `${api.defaults.baseURL}${data.path}` : null)
+      data.path ??
+      data.filePath ??
+      data.file ??
+      null
 
-    const absolute = absolutizeUrl(url)
+    const absolute = absolutizeUrl(raw)
     imageUrlCache.value[iri] = absolute
     return absolute
-
-  }
-
-  function absolutizeUrl(u) {
-    if (!u) return null
-    // Si l'URL commence par "/" => on la sert depuis le backend (baseURL axios)
-    if (typeof u === "string" && u.startsWith("/")) {
-      return `${api.defaults.baseURL}${u}`
-    }
-    return u
   }
 
   function firstImageUrl(p) {
     const img = p.images?.[0]
     if (!img) return null
 
-    // IRI string => on va chercher le détail
     if (typeof img === "string") {
+      // IRI => resolve async, retourne cache si dispo
       resolveImageIri(img)
-      return imageUrlCache.value[img] ?? null
+      const u = imageUrlCache.value[img] ?? null
+      return withBust(u)
     }
 
-    // objet direct
-    if (img.url) return absolutizeUrl(img.url)
-    if (img.contentUrl) return absolutizeUrl(img.contentUrl)
-    if (img.path) return `${api.defaults.baseURL}${img.path}`
+    if (img.url) return withBust(absolutizeUrl(img.url))
+    if (img.contentUrl) return withBust(absolutizeUrl(img.contentUrl))
+    if (img.path) return withBust(absolutizeUrl(img.path))
 
     return null
   }
-
 
   const form = reactive({
     id: null,
@@ -78,7 +107,7 @@ export function useAdminProduitsCrud() {
 
     // image
     imageMode: "url", // "url" | "file"
-    imageFile: null,  // File
+    imageFile: null, // File
     imageUrl: "",
     imageAlt: "",
   })
@@ -95,14 +124,10 @@ export function useAdminProduitsCrud() {
     return null
   })
 
-  // Clean blob URLs quand on change de fichier
   watch(
     () => form.imageFile,
-    (newFile, oldFile) => {
-      // Rien à faire ici si pas de blob en cours ; la preview est recalculée
-      // (on évite d'accumuler)
-      // On ne peut pas récupérer l'ancien blob URL facilement ici car computed,
-      // donc on reste simple : pas de revoke (acceptable pour admin).
+    () => {
+      // pas de revoke ici (ok pour admin)
     }
   )
 
@@ -129,23 +154,12 @@ export function useAdminProduitsCrud() {
     form.imageAlt = ""
 
     error.value = ""
-    // success on laisse vivre 2.5s si besoin
-  }
-
-  function setError(e) {
-    error.value =
-      e?.response?.data?.detail ||
-      e?.response?.data?.["hydra:description"] ||
-      e?.response?.data?.message ||
-      e?.message ||
-      "Erreur inconnue"
   }
 
   async function loadCategories() {
     try {
       const res = await api.get("/api/categories")
-      categories.value =
-        res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+      categories.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
     } catch (e) {
       setError(e)
     }
@@ -156,8 +170,10 @@ export function useAdminProduitsCrud() {
     error.value = ""
     try {
       const res = await api.get("/api/produits")
-      produits.value =
-        res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+      produits.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
+
+      // ✅ reset cache après refresh (évite ancienne URL)
+      imageUrlCache.value = {}
     } catch (e) {
       setError(e)
     } finally {
@@ -235,7 +251,10 @@ export function useAdminProduitsCrud() {
     }
   }
 
-  // Upload fichier -> /api/images/upload
+  function getTokenOrNull() {
+    return localStorage.getItem("token") || null
+  }
+
   async function uploadImageFile(produitIri) {
     if (!form.imageFile) throw new Error("Aucun fichier sélectionné.")
 
@@ -244,15 +263,35 @@ export function useAdminProduitsCrud() {
     fd.append("produit", produitIri)
     if (String(form.imageAlt ?? "").trim()) fd.append("alt", String(form.imageAlt).trim())
 
+    const token = getTokenOrNull()
+
     await api.post("/api/images/upload", fd, {
       headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         "Content-Type": "multipart/form-data",
         Accept: "application/ld+json",
       },
     })
   }
 
-  // ✅ Ajout image (mode EDIT) : URL ou FILE
+  async function createImageUrl(produitIri, url, alt) {
+    const token = getTokenOrNull()
+    await api.post(
+      "/api/images",
+      { url, alt, produit: produitIri },
+      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    )
+  }
+
+  // ✅ RELOAD + rester sur le même produit (important)
+  async function refreshAndKeepEditing() {
+    const keepIri = form.iri
+    imageUrlCache.value = {}
+    await loadProduits()
+    const fresh = keepIri ? produits.value.find((p) => p["@id"] === keepIri) : null
+    if (fresh) editProduit(fresh)
+  }
+
   async function addImageToCurrentProduct() {
     if (!form.iri) {
       alert("Tu dois d'abord enregistrer le produit, puis l'éditer.")
@@ -270,6 +309,7 @@ export function useAdminProduitsCrud() {
         await uploadImageFile(form.iri)
         form.imageFile = null
         form.imageAlt = ""
+        form.imageUrl = ""
         setSuccess("Image uploadée ✅")
       } else {
         const url = String(form.imageUrl ?? "").trim()
@@ -280,13 +320,14 @@ export function useAdminProduitsCrud() {
           return
         }
 
-        await api.post("/api/images", { url, alt, produit: form.iri })
+        await createImageUrl(form.iri, url, alt)
         form.imageUrl = ""
         form.imageAlt = ""
+        form.imageFile = null
         setSuccess("Image ajoutée ✅")
       }
 
-      await loadProduits()
+      await refreshAndKeepEditing()
     } catch (e) {
       setError(e)
     } finally {
@@ -306,9 +347,14 @@ export function useAdminProduitsCrud() {
         return
       }
 
-      await api.delete(iri)
-      await loadProduits()
+      const token = getTokenOrNull()
+
+      await api.delete(iri, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      })
+
       setSuccess("Image supprimée ✅")
+      await refreshAndKeepEditing()
     } catch (e) {
       setError(e)
     } finally {
@@ -316,7 +362,6 @@ export function useAdminProduitsCrud() {
     }
   }
 
-  // ✅ Submit produit : en CREATE, on peut aussi créer l'image (URL ou FILE)
   async function submitForm() {
     const msg = validate()
     if (msg) {
@@ -330,11 +375,9 @@ export function useAdminProduitsCrud() {
       const payload = payloadFromForm()
 
       if (mode.value === "create") {
-        // 1) créer le produit
         const res = await api.post("/api/produits", payload)
         const produitIri = res.data?.["@id"] || null
 
-        // 2) image optionnelle
         if (produitIri) {
           if (form.imageMode === "file" && form.imageFile) {
             await uploadImageFile(produitIri)
@@ -344,7 +387,7 @@ export function useAdminProduitsCrud() {
             const imgUrl = String(form.imageUrl ?? "").trim()
             const imgAlt = String(form.imageAlt ?? "").trim() || null
             if (imgUrl) {
-              await api.post("/api/images", { url: imgUrl, alt: imgAlt, produit: produitIri })
+              await createImageUrl(produitIri, imgUrl, imgAlt)
               setSuccess("Produit + image ajoutée ✅")
             } else {
               setSuccess("Produit créé ✅")
@@ -356,33 +399,26 @@ export function useAdminProduitsCrud() {
           setSuccess("Produit créé ✅")
         }
 
-        // reset champs image après création
         form.imageUrl = ""
         form.imageAlt = ""
         form.imageMode = "url"
 
-        // 3) refresh + passer en edit sur le produit créé
+        imageUrlCache.value = {}
         await loadProduits()
-        const fresh = produitIri
-          ? produits.value.find((p) => p["@id"] === produitIri)
-          : null
 
+        const fresh = produitIri ? produits.value.find((p) => p["@id"] === produitIri) : null
         if (fresh) editProduit(fresh)
         else resetForm()
       } else {
         const url = form.iri || `/api/produits/${form.id}`
-        await api.put(url, payload)
 
-        // on recharge et on reste en edit
-        const keepIri = form.iri
-        await loadProduits()
-        const fresh = keepIri
-          ? produits.value.find((p) => p["@id"] === keepIri)
-          : null
+        // ✅ PATCH (ton Produit n'autorise pas PUT? tu utilises PATCH: ok)
+        await api.patch(url, payload, {
+          headers: { "Content-Type": "application/merge-patch+json" },
+        })
 
         setSuccess("Produit enregistré ✅")
-        if (fresh) editProduit(fresh)
-        else resetForm()
+        await refreshAndKeepEditing()
       }
     } catch (e) {
       setError(e)
@@ -434,23 +470,17 @@ export function useAdminProduitsCrud() {
   return {
     produits,
     categories,
-
     loading,
     error,
     success,
-
     search,
     sortKey,
     sortDir,
-
     mode,
     form,
-
     imagePreview,
     canAddImageNow,
-
     filteredSortedProduits,
-
     init,
     firstImageUrl,
     resetForm,
@@ -459,7 +489,6 @@ export function useAdminProduitsCrud() {
     submitForm,
     toggleSort,
     categorieLabel,
-
     addImageToCurrentProduct,
     removeImage,
   }
