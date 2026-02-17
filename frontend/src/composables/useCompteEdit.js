@@ -65,7 +65,15 @@ export function useCompteEdit(initial = {}) {
         { headers: { "Content-Type": "application/merge-patch+json" } }
       )
 
-      await auth.init()
+      await auth.fetchMe(true) // force refresh /api/me
+
+      // après fetchMe(true)
+      form.value = {
+        prenom: auth.user?.prenom ?? "",
+        nom: auth.user?.nom ?? "",
+        whatsapp: auth.user?.whatsapp ?? "",
+      }
+
 
       saveSuccess.value = true
       editMode.value = false
