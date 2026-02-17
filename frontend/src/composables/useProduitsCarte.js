@@ -74,38 +74,51 @@ export function useProduitsCarte() {
   })
 
   // =========================
-  // ✅ Images
+  // ✅ Images (FIX uploads)
   // =========================
   const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
+
+  function absolutizeUrl(u) {
+    if (!u) return null
+    if (typeof u === "string" && u.startsWith("/")) {
+      return `${api.defaults.baseURL}${u}`
+    }
+    return u
+  }
 
   async function resolveImageIri(iri) {
     if (imageUrlCache.value[iri]) return imageUrlCache.value[iri]
 
     const { data } = await api.get(iri)
+
     const url =
       data.url ??
       data.contentUrl ??
-      (data.path ? `${api.defaults.baseURL}${data.path}` : null)
+      (data.path ? data.path : null)
 
-    imageUrlCache.value[iri] = url
-    return url
+    const absolute = absolutizeUrl(url)
+    imageUrlCache.value[iri] = absolute
+    return absolute
   }
 
   function firstImageUrl(p) {
     const img = p.images?.[0]
     if (!img) return null
 
+    // IRI string => on va chercher le détail puis on renvoie l'URL cachée
     if (typeof img === "string") {
       resolveImageIri(img)
       return imageUrlCache.value[img] ?? null
     }
 
-    if (img.url) return img.url
-    if (img.contentUrl) return img.contentUrl
-    if (img.path) return `${api.defaults.baseURL}${img.path}`
+    // Objet direct
+    if (img.url) return absolutizeUrl(img.url)
+    if (img.contentUrl) return absolutizeUrl(img.contentUrl)
+    if (img.path) return absolutizeUrl(img.path)
 
     return null
   }
+
 
   // =========================
   // ✅ Helpers / actions

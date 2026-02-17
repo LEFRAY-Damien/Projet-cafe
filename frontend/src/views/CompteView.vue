@@ -58,11 +58,11 @@ onMounted(async () => {
 async function onDeleteAccount() {
   const ok = confirm(
     "⚠️ Confirmer la suppression du compte ?\n\n" +
-      "- Votre compte sera désactivé (soft delete)\n" +
-      "- Vos données seront anonymisées\n" +
-      "- Vos favoris seront supprimés\n" +
-      "- Vos commandes 'en_attente' / 'prete' seront annulées\n\n" +
-      "Continuer ?"
+    "- Votre compte sera désactivé (soft delete)\n" +
+    "- Vos données seront anonymisées\n" +
+    "- Vos favoris seront supprimés\n" +
+    "- Vos commandes 'en_attente' / 'prete' seront annulées\n\n" +
+    "Continuer ?"
   )
   if (!ok) return
 
@@ -116,13 +116,8 @@ async function onDeleteAccount() {
                   <span class="fw-semibold">Prénom</span>
 
                   <span v-if="!editMode">{{ prenom || "Non renseigné" }}</span>
-                  <input
-                    v-else
-                    v-model="form.prenom"
-                    class="form-control form-control-sm"
-                    style="max-width:240px"
-                    autocomplete="given-name"
-                  />
+                  <input v-else v-model="form.prenom" class="form-control form-control-sm" style="max-width:240px"
+                    autocomplete="given-name" />
                 </li>
 
                 <!-- Nom -->
@@ -130,13 +125,8 @@ async function onDeleteAccount() {
                   <span class="fw-semibold">Nom</span>
 
                   <span v-if="!editMode">{{ nom || "Non renseigné" }}</span>
-                  <input
-                    v-else
-                    v-model="form.nom"
-                    class="form-control form-control-sm"
-                    style="max-width:240px"
-                    autocomplete="family-name"
-                  />
+                  <input v-else v-model="form.nom" class="form-control form-control-sm" style="max-width:240px"
+                    autocomplete="family-name" />
                 </li>
 
                 <!-- Email -->
@@ -150,14 +140,8 @@ async function onDeleteAccount() {
                   <span class="fw-semibold">WhatsApp</span>
 
                   <span v-if="!editMode">{{ whatsapp || "Non renseigné" }}</span>
-                  <input
-                    v-else
-                    v-model="form.whatsapp"
-                    class="form-control form-control-sm"
-                    style="max-width:240px"
-                    placeholder="+33..."
-                    autocomplete="tel"
-                  />
+                  <input v-else v-model="form.whatsapp" class="form-control form-control-sm" style="max-width:240px"
+                    placeholder="+33..." autocomplete="tel" />
                 </li>
 
                 <!-- Rôles -->
@@ -176,12 +160,7 @@ async function onDeleteAccount() {
                 </button>
 
                 <!-- ✅ Supprimer compte -->
-                <button
-                  type="button"
-                  class="btn btn-outline-danger"
-                  :disabled="deleting"
-                  @click="onDeleteAccount"
-                >
+                <button type="button" class="btn btn-outline-danger" :disabled="deleting" @click="onDeleteAccount">
                   <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
                   Supprimer mon compte
                 </button>
@@ -192,12 +171,7 @@ async function onDeleteAccount() {
                   {{ saving ? "Enregistrement..." : "Enregistrer" }}
                 </button>
 
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary"
-                  :disabled="saving"
-                  @click="cancelEdit"
-                >
+                <button type="button" class="btn btn-outline-secondary" :disabled="saving" @click="cancelEdit">
                   Annuler
                 </button>
               </div>
@@ -206,12 +180,8 @@ async function onDeleteAccount() {
 
               <!-- Commandes -->
               <div class="d-grid">
-                <button
-                  class="btn btn-outline-primary"
-                  type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#collapseMesCommandes"
-                >
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#collapseMesCommandes">
                   Mes commandes ({{ commandes.length }})
                 </button>
               </div>
@@ -254,6 +224,37 @@ async function onDeleteAccount() {
                       </tr>
                     </tbody>
                   </table>
+
+                  <!-- ✅ DÉTAIL COMMANDE -->
+                  <div v-if="selected" class="mt-3 border rounded p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <strong>Détail commande #{{ selected.id }}</strong>
+                      <button class="btn btn-sm btn-outline-secondary" @click="closeDetails">Fermer</button>
+                    </div>
+
+                    <div v-if="detailsLoading" class="text-muted">Chargement du détail...</div>
+                    <div v-else-if="detailsError" class="alert alert-danger py-2">{{ detailsError }}</div>
+
+                    <div v-else>
+                      <div class="small text-muted mb-2">
+                        Statut : {{ selected.statut }}
+                      </div>
+
+                      <div v-if="!selected.lignes || selected.lignes.length === 0" class="text-muted">
+                        Aucun article dans cette commande (ou lignes non exposées par l’API).
+                      </div>
+
+                      <ul v-else class="list-group">
+                        <li v-for="l in selected.lignes" :key="l['@id'] || l.id"
+                          class="list-group-item d-flex justify-content-between">
+                          <span>{{ l.produit?.nom || l.produit?.name || 'Produit' }}</span>
+                          <span>x{{ l.quantite || l.qty || 1 }}</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+
                 </div>
               </div>
 

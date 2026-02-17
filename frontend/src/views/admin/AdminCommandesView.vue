@@ -6,7 +6,12 @@ const {
   loading,
   error,
   search,
-  filteredCommandes,
+
+  // ✅ NEW
+  showOnlyTodo,
+  visibleCommandes,
+  todoCount,
+
   loadCommandes,
   openDetails,
   closeDetails,
@@ -18,7 +23,7 @@ const {
   formatDateOnly,
   removeCommande,
 
-  // ✅ user helpers
+  // user helpers
   userLabel,
   userEmail,
   userIsDeleted,
@@ -52,17 +57,34 @@ function badgeClass(statut) {
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h2 class="h5 mb-0">Commandes</h2>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
           <input
             v-model="search"
             class="form-control"
             style="max-width: 420px"
             placeholder="Rechercher (id, statut, dates, client...)"
           />
+
+          <!-- ✅ NEW: toggle -->
+          <button
+            class="btn"
+            :class="showOnlyTodo ? 'btn-primary' : 'btn-outline-primary'"
+            @click="showOnlyTodo = !showOnlyTodo"
+            :disabled="loading"
+            :title="showOnlyTodo ? 'N’affiche que en_attente / prete' : 'Affiche tout'"
+          >
+            {{ showOnlyTodo ? "À faire seulement" : "Toutes" }}
+          </button>
+
           <button class="btn btn-outline-primary" @click="loadCommandes" :disabled="loading">
             Rafraîchir
           </button>
         </div>
+      </div>
+
+      <!-- ✅ NEW: petit rappel -->
+      <div v-if="todoCount > 0" class="alert alert-warning py-2">
+        ⚠️ {{ todoCount }} commande(s) à traiter.
       </div>
 
       <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
@@ -82,17 +104,13 @@ function badgeClass(statut) {
           </thead>
 
           <tbody>
-            <tr v-for="c in filteredCommandes" :key="c['@id'] || c.id">
+            <tr v-for="c in visibleCommandes" :key="c['@id'] || c.id">
               <td class="fw-semibold">{{ c.id }}</td>
 
-              <!-- ✅ Client -->
               <td>
                 <div class="fw-semibold d-flex align-items-center gap-2">
                   <span>{{ userLabel(c.user) }}</span>
-
-                  <span v-if="userIsDeleted(c.user)" class="badge text-bg-secondary">
-                    Supprimé
-                  </span>
+                  <span v-if="userIsDeleted(c.user)" class="badge text-bg-secondary">Supprimé</span>
                 </div>
                 <div class="small text-muted">{{ userEmail(c.user) }}</div>
               </td>
@@ -124,7 +142,7 @@ function badgeClass(statut) {
               </td>
             </tr>
 
-            <tr v-if="filteredCommandes.length === 0">
+            <tr v-if="visibleCommandes.length === 0">
               <td colspan="6" class="text-center text-muted py-4">Aucune commande.</td>
             </tr>
           </tbody>
@@ -152,7 +170,6 @@ function badgeClass(statut) {
         <div v-if="detailsLoading" class="text-muted">Chargement du détail...</div>
 
         <div v-if="selected && !detailsLoading" class="row g-3">
-          <!-- ✅ Client -->
           <div class="col-12">
             <div class="border rounded p-3">
               <div class="text-muted small">Client</div>
@@ -213,7 +230,6 @@ function badgeClass(statut) {
           </div>
         </div>
 
-        <!-- Lignes de commande -->
         <div v-if="selected && !detailsLoading" class="mt-3">
           <h4 class="h6">Articles</h4>
 

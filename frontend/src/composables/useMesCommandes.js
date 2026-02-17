@@ -1,108 +1,114 @@
-import { computed, onMounted, ref } from "vue"
+import { computed, ref } from "vue"
 import api from "@/api/axios"
 import { useAuthStore } from "@/stores/auth"
 
 export function useMesCommandes() {
-    const auth = useAuthStore()
+  const auth = useAuthStore()
 
-    const selected = ref(null)
-    const detailsLoading = ref(false)
-    const detailsError = ref("")
+  const commandes = ref([])
+  const loading = ref(false)
+  const error = ref(null)
 
+  const selected = ref(null)
+  const detailsLoading = ref(false)
+  const detailsError = ref(null)
 
-    const commandes = ref([])
-    const loading = ref(false)
-    const error = ref("")
+  const isLoggedIn = computed(() => auth.isLoggedIn)
 
-    const isLoggedIn = computed(() => auth.isLoggedIn)
+  function authHeaders() {
+    // ✅ fonctionne même si tu n'as pas d'interceptor axios
+    return auth.token ? { Authorization: `Bearer ${auth.token}` } : {}
+  }
 
-    async function openDetails(cmd) {
-        detailsLoading.value = true
-        detailsError.value = ""
-        selected.value = null
+  function setError(targetRef, e) {
+    targetRef.value =
+      e?.response?.data?.detail ||
+      e?.response?.data?.message ||
+      e?.message ||
+      "Erreur inconnue"
+  }
 
-        try {
-            const token = localStorage.getItem("token")
-            if (!token) throw new Error("Token manquant")
+  async function loadMesCommandes() {
+    if (!auth.token) return
+    loading.value = true
+    error.value = null
 
-            // IMPORTANT: pour un user, le détail est sur /api/commandes/{id} (pas /admin)
-            const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/commandes/${cmd.id}` : null)
-            if (!iri) throw new Error("Commande invalide")
+    try {
+      const res = await api.get("/api/me/commandes", { headers: authHeaders() })
 
-            const res = await api.get(iri, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
+      // Hydra / API Platform
+      commandes.value =
+        res.data?.["hydra:member"] ??
+        res.data?.member ??
+        (Array.isArray(res.data) ? res.data : [])
+    } catch (e) {
+      setError(error, e)
+    } finally {
+      loading.value = false
+    }
+  }
 
-            selected.value = res.data
-        } catch (e) {
-            detailsError.value =
-                e?.response?.data?.detail ||
-                e?.response?.data?.message ||
-                e?.message ||
-                "Erreur inconnue"
-        } finally {
-            detailsLoading.value = false
-        }
+  async function openDetails(cmd) {
+    if (!auth.token) {
+      detailsError.value = "Vous devez être connecté."
+      return
     }
 
-    function closeDetails() {
-        selected.value = null
-        detailsError.value = ""
+    detailsLoading.value = true
+    detailsError.value = null
+    selected.value = null
+
+    try {
+      // ✅ on préfère une URL stable
+      const id = cmd?.id
+      const iri = cmd?.["@id"]
+      const url = id ? `/api/commandes/${id}` : iri
+
+      if (!url) throw new Error("Commande invalide (id/@id manquant)")
+
+      const res = await api.get(url, { headers: authHeaders() })
+      selected.value = res.data
+
+      // ✅ OPTIONNEL : si l'API renvoie des IRIs dans lignes, on garde selected tel quel.
+      // (On pourra ensuite enrichir si tu veux afficher le produit/quantité proprement)
+    } catch (e) {
+      setError(detailsError, e)
+    } finally {
+      detailsLoading.value = false
     }
+  }
 
+  function closeDetails() {
+    selected.value = null
+    detailsError.value = null
+  }
 
-    function setError(e) {
-        error.value =
-            e?.response?.data?.detail ||
-            e?.response?.data?.message ||
-            e?.message ||
-            "Erreur inconnue"
-    }
+  function formatDateTime(raw) {
+    if (!raw) return "—"
+    const d = new Date(raw)
+    return isNaN(d.getTime()) ? String(raw) : d.toLocaleString()
+  }
 
-    async function loadMesCommandes() {
-        if (!auth.token) return
-        loading.value = true
-        error.value = ""
+  function formatDateOnly(raw) {
+    if (!raw) return "—"
+    const d = new Date(raw)
+    return isNaN(d.getTime()) ? String(raw) : d.toLocaleDateString()
+  }
 
-        try {
-            const res = await api.get("/api/me/commandes", {
-                headers: { Authorization: `Bearer ${auth.token}` },
-            })
+  return {
+    isLoggedIn,
+    commandes,
+    loading,
+    error,
+    loadMesCommandes,
 
+    selected,
+    detailsLoading,
+    detailsError,
+    openDetails,
+    closeDetails,
 
-            commandes.value = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
-        } catch (e) {
-            setError(e)
-        } finally {
-            loading.value = false
-        }
-    }
-
-    function formatDateTime(raw) {
-        if (!raw) return "—"
-        const d = new Date(raw)
-        return isNaN(d.getTime()) ? String(raw) : d.toLocaleString()
-    }
-
-    function formatDateOnly(raw) {
-        if (!raw) return "—"
-        const d = new Date(raw)
-        return isNaN(d.getTime()) ? String(raw) : d.toLocaleDateString()
-    }
-
-    return {
-        isLoggedIn,
-        commandes,
-        loading,
-        error,
-        loadMesCommandes,
-        formatDateTime,
-        formatDateOnly,
-        selected,
-        detailsLoading,
-        detailsError,
-        openDetails,
-        closeDetails,
-
-    }
+    formatDateTime,
+    formatDateOnly,
+  }
 }

@@ -11,6 +11,9 @@ export function useAdminCommandes() {
   const detailsLoading = ref(false)
   const detailsError = ref("")
 
+  // ✅ NEW: toggle "à faire seulement"
+  const showOnlyTodo = ref(true)
+
   function setError(e) {
     error.value =
       e?.response?.data?.detail ||
@@ -98,7 +101,8 @@ export function useAdminCommandes() {
     try {
       const token = getTokenOrThrow()
 
-      const iri = cmd?.["@id"] ?? (cmd?.id ? `/api/admin/commandes/${cmd.id}` : null)
+      const id = cmd?.id
+      const iri = cmd?.["@id"] ?? (id ? `/api/admin/commandes/${id}` : null)
       if (!iri) throw new Error("Commande invalide (pas d'@id / id)")
 
       const res = await api.patch(
@@ -112,18 +116,28 @@ export function useAdminCommandes() {
         }
       )
 
-      // MAJ selected si ouvert
-      if (selected.value?.id === cmd.id) {
-        selected.value = res.data
+      // ✅ 1) MAJ immédiate côté UI (même si API renvoie 204)
+      // MAJ selected (si le détail est ouvert)
+      if (selected.value?.id === id) {
+        selected.value = { ...selected.value, statut: newStatut }
       }
 
-      // MAJ liste locale (statut seulement, le reste ne change pas)
-      const idx = commandes.value.findIndex((c) => c.id === cmd.id)
+      // MAJ liste locale
+      const idx = commandes.value.findIndex((c) => c.id === id)
       if (idx !== -1) commandes.value[idx] = { ...commandes.value[idx], statut: newStatut }
+
+      // ✅ 2) Si l'API renvoie un JSON complet (200), on remplace proprement
+      // (sinon on garde la MAJ locale)
+      if (res?.data && typeof res.data === "object" && Object.keys(res.data).length > 0) {
+        if (selected.value?.id === id) selected.value = res.data
+        if (idx !== -1) commandes.value[idx] = { ...commandes.value[idx], ...res.data }
+      }
+      await loadCommandes()
     } catch (e) {
       setError(e)
     }
   }
+
 
   async function removeCommande(cmd) {
     error.value = ""
@@ -190,7 +204,7 @@ export function useAdminCommandes() {
         String(c?.dateCommande ?? ""),
         String(c?.dateRetrait ?? ""),
 
-        // ✅ recherche client
+        // recherche client
         String(u?.prenom ?? ""),
         String(u?.nom ?? ""),
         String(u?.email ?? ""),
@@ -201,6 +215,18 @@ export function useAdminCommandes() {
 
       return hay.includes(q)
     })
+  })
+
+  // ✅ NEW: visible selon toggle
+  const visibleCommandes = computed(() => {
+    const base = filteredCommandes.value
+    if (!showOnlyTodo.value) return base
+    return base.filter((c) => ["en_attente", "prete"].includes(c?.statut))
+  })
+
+  // ✅ NEW: compteur "à faire"
+  const todoCount = computed(() => {
+    return commandes.value.filter((c) => ["en_attente", "prete"].includes(c?.statut)).length
   })
 
   return {
@@ -219,11 +245,17 @@ export function useAdminCommandes() {
     removeCommande,
     updateStatut,
 
+    // ✅ NEW
+    showOnlyTodo,
+    visibleCommandes,
+    todoCount,
+
+    // keep
     filteredCommandes,
     formatDateTime,
     formatDateOnly,
 
-    // ✅ helpers user
+    // helpers user
     userLabel,
     userEmail,
     userIsDeleted,
