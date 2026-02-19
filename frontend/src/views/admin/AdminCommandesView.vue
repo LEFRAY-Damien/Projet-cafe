@@ -7,7 +7,6 @@ const {
   error,
   search,
 
-  // ✅ NEW
   showOnlyTodo,
   visibleCommandes,
   todoCount,
@@ -65,7 +64,6 @@ function badgeClass(statut) {
             placeholder="Rechercher (id, statut, dates, client...)"
           />
 
-          <!-- ✅ NEW: toggle -->
           <button
             class="btn"
             :class="showOnlyTodo ? 'btn-primary' : 'btn-outline-primary'"
@@ -82,7 +80,6 @@ function badgeClass(statut) {
         </div>
       </div>
 
-      <!-- ✅ NEW: petit rappel -->
       <div v-if="todoCount > 0" class="alert alert-warning py-2">
         ⚠️ {{ todoCount }} commande(s) à traiter.
       </div>
@@ -147,10 +144,6 @@ function badgeClass(statut) {
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div class="text-muted small">
-        Note : en admin, la commande inclut maintenant <code>user</code> (nom/email + badge supprimé si inactif).
       </div>
     </div>
   </div>
@@ -271,11 +264,6 @@ function badgeClass(statut) {
             </table>
           </div>
         </div>
-
-        <details v-if="selected && !detailsLoading" class="mt-3">
-          <summary class="text-muted">Voir JSON brut</summary>
-          <pre class="bg-light p-3 rounded mt-2 mb-0" style="white-space: pre-wrap;">{{ selected }}</pre>
-        </details>
       </div>
     </div>
   </div>

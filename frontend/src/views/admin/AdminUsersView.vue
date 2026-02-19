@@ -34,7 +34,7 @@ const {
 
 onMounted(() => loadUsers())
 
-// ✅ Liste affichée (cache les supprimés si switch OFF)
+// ✅ Liste affichée 
 const displayedUsers = computed(() => {
   const list = filteredSortedUsers.value || []
   return showDeleted.value ? list : list.filter((u) => !isSoftDeleted(u))

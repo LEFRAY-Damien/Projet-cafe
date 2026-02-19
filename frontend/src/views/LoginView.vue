@@ -2,7 +2,6 @@
 import { useLoginForm } from "@/composables/useLoginForm"
 import { useRegisterForm } from "@/composables/useRegisterForm"
 
-// ✅ destructuring : refs top-level (sinon v-model reçoit un objet ref)
 const {
   email: loginEmail,
   password: loginPassword,
@@ -128,10 +127,6 @@ const {
                   {{ registerLoading ? "Création..." : "Créer mon compte" }}
                 </button>
               </form>
-
-              <small class="d-block mt-3 opacity-75">
-                Tu peux ensuite gérer tes favoris et tes commandes.
-              </small>
             </div>
           </div>
         </div>
