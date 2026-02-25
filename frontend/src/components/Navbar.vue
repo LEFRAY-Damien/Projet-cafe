@@ -14,7 +14,7 @@ const todoCount = ref(0)
 function onLogout() {
   auth.logout()
   todoCount.value = 0
-  router.replace("/") // ✅ retour accueil, et pas de retour arrière vers /admin
+  router.replace("/")
 }
 
 async function refreshTodoCount() {
@@ -27,19 +27,14 @@ async function refreshTodoCount() {
     })
 
     const list = res.data?.["hydra:member"] ?? res.data?.member ?? res.data ?? []
-
-    // ✅ à traiter = en_attente + prete
     todoCount.value = list.filter((c) => ["en_attente", "prete"].includes(c?.statut)).length
   } catch {
     todoCount.value = 0
   }
 }
 
-onMounted(() => {
-  refreshTodoCount()
-})
+onMounted(() => refreshTodoCount())
 
-// refresh quand l’admin se connecte / token change
 watch(
   () => [auth.isAdmin, auth.token],
   () => refreshTodoCount()
@@ -47,51 +42,79 @@ watch(
 </script>
 
 <template>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top" style="z-index:10;">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top" style="z-index: 10;">
     <div class="container-fluid">
       <RouterLink class="navbar-brand" to="/">Café Français</RouterLink>
 
-      <div class="navbar-nav ms-auto align-items-center">
-        <RouterLink class="nav-link" to="/produits">Produits</RouterLink>
+      <!-- 🍔 Hamburger -->
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#mainNavbar"
+        aria-controls="mainNavbar"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-        <!-- 🛒 PANIER -->
-        <RouterLink v-if="auth.isLoggedIn" to="/panier" class="nav-link position-relative">
-          Panier
-          <span
-            v-if="panier.count > 0"
-            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+      <!-- 🔽 Tout le menu (collapsable) -->
+      <div id="mainNavbar" class="collapse navbar-collapse">
+        <!-- ✅ TOUT à droite comme avant -->
+        <div class="navbar-nav ms-auto align-items-lg-center">
+          <RouterLink class="nav-link" to="/produits">Produits</RouterLink>
+
+          <!-- 🛒 PANIER -->
+          <RouterLink
+            v-if="auth.isLoggedIn"
+            to="/panier"
+            class="nav-link position-relative"
           >
-            {{ panier.count }}
-          </span>
-        </RouterLink>
+            Panier
+            <span
+              v-if="panier.count > 0"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+            >
+              {{ panier.count }}
+            </span>
+          </RouterLink>
 
-        <!-- 👤 COMPTE -->
-        <RouterLink v-if="auth.isLoggedIn" class="nav-link" to="/compte">
-          Compte
-        </RouterLink>
+          <!-- 👤 COMPTE -->
+          <RouterLink v-if="auth.isLoggedIn" class="nav-link" to="/compte">
+            Compte
+          </RouterLink>
 
-        <RouterLink class="nav-link" to="/contact">Contact</RouterLink>
+          <RouterLink class="nav-link" to="/contact">Contact</RouterLink>
 
-        <!-- 🔐 ADMIN + badge commandes à traiter -->
-        <RouterLink v-if="auth.isAdmin" class="nav-link position-relative" to="/admin/produits">
-          Admin
-          <span
-            v-if="todoCount > 0"
-            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark"
-            title="Commandes à traiter (en attente + prêtes)"
+          <!-- 🔐 ADMIN -->
+          <RouterLink
+            v-if="auth.isAdmin"
+            class="nav-link position-relative"
+            to="/admin/produits"
           >
-            {{ todoCount }}
-          </span>
-        </RouterLink>
+            Admin
+            <span
+              v-if="todoCount > 0"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark"
+            >
+              {{ todoCount }}
+            </span>
+          </RouterLink>
 
-        <!-- 🔑 LOGIN -->
-        <RouterLink v-if="!auth.isLoggedIn" class="nav-link" to="/login">
-          Se connecter
-        </RouterLink>
+          <!-- 🔑 LOGIN / LOGOUT -->
+          <RouterLink v-if="!auth.isLoggedIn" class="nav-link" to="/login">
+            Se connecter
+          </RouterLink>
 
-        <button v-else class="btn btn-outline-light btn-sm ms-2" @click="onLogout">
-          Déconnexion
-        </button>
+          <button
+            v-else
+            class="btn btn-outline-light btn-sm ms-lg-2 mt-2 mt-lg-0"
+            @click="onLogout"
+          >
+            Déconnexion
+          </button>
+        </div>
       </div>
     </div>
   </nav>
