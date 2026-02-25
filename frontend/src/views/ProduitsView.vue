@@ -24,12 +24,13 @@ const {
 
     <div class="home-content container py-4">
       <!-- HEADER -->
-      <div class="d-flex align-items-center justify-content-between mb-4">
+      <div
+        class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 mb-4">
         <div>
           <h1 class="h3 mb-1">La carte</h1>
           <div>Produits disponibles au retrait</div>
         </div>
-        
+
         <!-- ✅ Filtre catégorie -->
         <div class="mt-2 d-flex gap-2" style="max-width: 260px;">
           <select v-model="selectedCategorieIri" class="form-select form-select-sm">
@@ -65,11 +66,10 @@ const {
         {{ produitsStore.error }}
       </div>
 
-      <div v-else class="overflow-y-auto pe-1 cardProduits">
-        <div class="d-flex flex-row flex-nowrap overflow-auto pb-2">
+      <div v-else class="cardProduits overflow-y-auto overflow-x-hidden">
+        <div class="row g-3 mx-0">
 
-          <div v-for="p in produits" :key="productIri(p)" class="flex-shrink-0 me-3" style="width: 260px;">
-
+          <div v-for="p in produits" :key="productIri(p)" class="col-6 col-md-4 col-lg-3">
             <div class="card h-100 shadow-sm">
               <div class="ratio ratio-4x3 bg-light">
                 <img v-if="firstImageUrl(p)" :src="firstImageUrl(p)" class="card-img-top object-fit-cover"
@@ -92,7 +92,6 @@ const {
                     <div class="fw-semibold">{{ formatPrice(p.prix) }} €</div>
                   </div>
 
-
                   <button v-if="auth.isLoggedIn" class="btn btn-sm"
                     :class="favorisStore.isFav(productIri(p)) ? 'btn-danger' : 'btn-outline-danger'" type="button"
                     title="Favori" @click="toggleFav(p)">
@@ -110,9 +109,8 @@ const {
                 <div class="mt-auto pt-2 d-flex gap-2">
                   <button v-if="auth.isLoggedIn" class="btn btn-primary w-100" type="button" :disabled="!p.disponible"
                     @click="addToPanier(p)">
-                    Ajouter au panier
+                    Ajouter
                   </button>
-
                 </div>
 
                 <div v-if="!auth.isLoggedIn" class="small text-muted mt-2">
@@ -121,6 +119,7 @@ const {
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
