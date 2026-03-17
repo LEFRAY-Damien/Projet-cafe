@@ -16,11 +16,10 @@ const {
   loading,
   error,
   success,
-  dateRetrait, // ✅ AJOUT
-  minDate,     // ✅ AJOUT
-  maxDate,     // ✅ AJOUT
+  dateRetrait,
+  minDate,
+  maxDate,
 } = usePanierCarte();
-
 </script>
 
 <template>
@@ -29,13 +28,15 @@ const {
 
     <div class="home-content container py-4">
       <!-- HEADER -->
-      <div class="d-flex align-items-center justify-content-between mb-4">
+      <div
+        class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4"
+      >
         <div>
           <h1 class="h3 mb-1">Mon panier</h1>
           <div>Vérifie tes articles avant de commander</div>
         </div>
 
-        <div class="text-end">
+        <div class="text-start text-md-end w-100 w-md-auto">
           <div class="small">Total</div>
           <div class="fw-semibold">
             {{ panier.count }} item(s) • {{ formatPrice(panier.total) }} €
@@ -61,21 +62,18 @@ const {
           <RouterLink to="/produits" class="alert-link ms-1">Voir les produits</RouterLink>
         </div>
 
-
-
-
         <!-- PANIER REMPLI -->
         <div v-else class="card shadow-sm text-dark">
           <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table mb-0 align-middle">
+              <table class="table table-sm mb-0 align-middle panier-table">
                 <thead class="table-light">
                   <tr>
                     <th>Produit</th>
                     <th class="text-end">Prix</th>
-                    <th class="text-center" style="width: 230px;">Quantité</th>
+                    <th class="text-center">Quantité</th>
                     <th class="text-end">Sous-total</th>
-                    <th style="width: 70px;"></th>
+                    <th class="text-end">Action</th>
                   </tr>
                 </thead>
 
@@ -86,15 +84,28 @@ const {
                     <td class="text-end">{{ formatPrice(i.price) }} €</td>
 
                     <td>
-                      <div class="d-flex justify-content-center align-items-center gap-2">
-                        <button class="btn btn-sm btn-outline-secondary" type="button" @click="dec(i)">
+                      <div class="d-flex justify-content-center align-items-center gap-1 flex-nowrap qty-group">
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          type="button"
+                          @click="dec(i)"
+                        >
                           -
                         </button>
 
-                        <input class="form-control form-control-sm text-center" style="width: 80px;" type="number"
-                          min="1" :value="i.qty" @change="setQty(i, $event.target.value)" />
+                        <input
+                          class="form-control form-control-sm text-center qty-input"
+                          type="number"
+                          min="1"
+                          :value="i.qty"
+                          @change="setQty(i, $event.target.value)"
+                        />
 
-                        <button class="btn btn-sm btn-outline-secondary" type="button" @click="inc(i)">
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          type="button"
+                          @click="inc(i)"
+                        >
                           +
                         </button>
                       </div>
@@ -105,7 +116,11 @@ const {
                     </td>
 
                     <td class="text-end">
-                      <button class="btn btn-sm btn-outline-danger" type="button" @click="removeItem(i)">
+                      <button
+                        class="btn btn-sm btn-outline-danger"
+                        type="button"
+                        @click="removeItem(i)"
+                      >
                         ✕
                       </button>
                     </td>
@@ -123,36 +138,51 @@ const {
             </div>
           </div>
 
-          <div class="card-footer d-flex justify-content-between align-items-end gap-3 flex-wrap">
-            <button class="btn btn-outline-danger" type="button" @click="clearPanier" :disabled="loading">
+          <div
+            class="card-footer d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-end gap-3"
+          >
+            <button
+              class="btn btn-outline-danger"
+              type="button"
+              @click="clearPanier"
+              :disabled="loading"
+            >
               Vider le panier
             </button>
 
-            <!-- ✅ Date de retrait -->
-            <div style="min-width: 220px;">
+            <div class="date-retrait-block">
               <label class="form-label mb-1">Date de retrait</label>
-              <input type="date" class="form-control form-control-sm" v-model="dateRetrait" :min="minDate"
-                :max="maxDate" :disabled="loading" />
+              <input
+                type="date"
+                class="form-control form-control-sm"
+                v-model="dateRetrait"
+                :min="minDate"
+                :max="maxDate"
+                :disabled="loading"
+              />
               <div class="form-text">
                 Entre {{ minDate }} et {{ maxDate }}.
               </div>
             </div>
 
-            <button class="btn btn-primary" type="button" @click="checkout" :disabled="loading">
+            <button
+              class="btn btn-primary"
+              type="button"
+              @click="checkout"
+              :disabled="loading"
+            >
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               Valider la commande
             </button>
           </div>
 
-
-          <div v-if="error" class="alert alert-danger mt-3">
+          <div v-if="error" class="alert alert-danger m-3 mb-0">
             {{ error }}
           </div>
 
-          <div v-if="success" class="alert alert-success mt-3">
+          <div v-if="success" class="alert alert-success m-3 mb-0">
             ✅ Commande envoyée au serveur !
           </div>
-
         </div>
       </template>
     </div>

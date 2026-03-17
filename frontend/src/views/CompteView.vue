@@ -159,7 +159,7 @@ async function onDeleteAccount() {
                   Modifier mes infos
                 </button>
 
-                <!-- ✅ Supprimer compte -->
+                <!-- Supprimer compte -->
                 <button type="button" class="btn btn-outline-danger" :disabled="deleting" @click="onDeleteAccount">
                   <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
                   Supprimer mon compte
@@ -225,7 +225,7 @@ async function onDeleteAccount() {
                     </tbody>
                   </table>
 
-                  <!-- ✅ DÉTAIL COMMANDE -->
+                  <!--  DÉTAIL COMMANDE -->
                   <div v-if="selected" class="mt-3 border rounded p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <strong>Détail commande #{{ selected.id }}</strong>

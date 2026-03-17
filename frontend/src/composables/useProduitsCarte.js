@@ -15,18 +15,20 @@ export function useProduitsCarte() {
     return p["@id"] || `/api/produits/${p.id}`
   }
 
-  // =========================
-  // ✅ Catégories (pour filtre + label)
+  //  Catégories 
   // =========================
   const categories = ref([])
   const selectedCategorieIri = ref("") // "" = toutes
 
   async function fetchCategories() {
     try {
-      const { data } = await api.get("/api/categories")
-      categories.value = data?.member ?? data?.items ?? []
+      const { data } = await api.get
+      ("/api/categories")
+      categories.value = data?.member
+       ?? data?.items ?? []
     } catch (e) {
-      console.warn("Erreur chargement categories", e)
+      console.warn
+      ("Erreur chargement categories", e)
       categories.value = []
     }
   }
@@ -50,8 +52,7 @@ export function useProduitsCarte() {
     return found?.nom ?? "—"
   }
 
-  // =========================
-  // ✅ Produits filtrés + triés (favoris d'abord)
+  //  Produits filtrés + triés 
   // =========================
   const produits = computed(() => {
     const list = produitsStore.items ?? []
@@ -73,8 +74,6 @@ export function useProduitsCarte() {
     })
   })
 
-  // =========================
-  // ✅ Images (FIX uploads)
   // =========================
   const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
 
@@ -119,9 +118,6 @@ export function useProduitsCarte() {
     return null
   }
 
-
-  // =========================
-  // ✅ Helpers / actions
   // =========================
   function formatPrice(value) {
     const n = Number(value ?? 0)

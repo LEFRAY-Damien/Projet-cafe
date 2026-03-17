@@ -32,3 +32,43 @@
 .cardProduits {
   max-height: 60vh;
 }
+
+.panier-table th,
+.panier-table td {
+  vertical-align: middle;
+}
+
+.qty-input {
+  width: 60px;
+  min-width: 60px;
+}
+
+.date-retrait-block {
+  min-width: 220px;
+}
+
+@media (max-width: 767.98px) {
+  .panier-table {
+    font-size: 0.9rem;
+  }
+
+  .panier-table th,
+  .panier-table td {
+    white-space: nowrap;
+    padding: 0.5rem;
+  }
+
+  .qty-input {
+    width: 52px;
+    min-width: 52px;
+  }
+
+  .date-retrait-block {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .card-footer .btn {
+    width: 100%;
+  }
+}

@@ -137,11 +137,6 @@ onMounted(() => {
                                 Total : <strong>{{ filteredSortedCategories.length }}</strong>
                             </div>
 
-                            <div class="alert alert-warning mt-3 mb-0 py-2">
-                                <strong>Note :</strong> si une catégorie est utilisée par des produits,
-                                la suppression peut échouer (contrainte SQL). Dans ce cas on gèrera une “suppression
-                                refusée” propre.
-                            </div>
                         </div>
                     </div>
                 </div>

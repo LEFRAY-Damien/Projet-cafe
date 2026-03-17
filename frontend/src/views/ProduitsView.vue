@@ -69,18 +69,21 @@ const {
       <div v-else class="cardProduits overflow-y-auto overflow-x-hidden">
         <div class="row g-3 mx-0">
 
-          <div v-for="p in produits" :key="productIri(p)" class="col-6 col-md-4 col-lg-3">
+          <div v-for="p in produits" :key="productIri(p)" 
+          class="col-6 col-md-4 col-lg-3">
             <div class="card h-100 shadow-sm">
               <div class="ratio ratio-4x3 bg-light">
-                <img v-if="firstImageUrl(p)" :src="firstImageUrl(p)" class="card-img-top object-fit-cover"
+                <img v-if="firstImageUrl(p)" :src="firstImageUrl(p)" 
+                class="card-img-top object-fit-cover"
                   :alt="p.nom" />
-                <div v-else class="d-flex align-items-center justify-content-center text-muted">
+                <div v-else class="d-flex align-items-center 
+                justify-content-center text-muted">
                   Pas d’image
                 </div>
               </div>
-
               <div class="card-body d-flex flex-column p-2">
-                <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="d-flex justify-content-between 
+                align-items-start gap-2">
                   <div>
                     <div class="mb-1">
                       <span class="badge text-bg-light text-muted">
