@@ -220,9 +220,7 @@ const displayedUsers = computed(() => {
                 Aucun utilisateur.
               </div>
 
-              <div class="text-muted small">
-                Note : on ne gère pas le mot de passe ici (non exposé dans <code>user:write</code>).
-              </div>
+              
             </div>
           </div>
         </div>

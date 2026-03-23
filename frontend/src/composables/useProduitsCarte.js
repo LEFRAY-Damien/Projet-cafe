@@ -12,23 +12,22 @@ export function useProduitsCarte() {
   const panier = usePanierStore()
 
   function productIri(p) {
-    return p["@id"] || `/api/produits/${p.id}`
+    return p?.["@id"] || (p?.id ? `/api/produits/${p.id}` : null)
   }
 
-  //  Catégories 
-  // =========================
   const categories = ref([])
-  const selectedCategorieIri = ref("") // "" = toutes
+  const selectedCategorieIri = ref("")
 
   async function fetchCategories() {
     try {
-      const { data } = await api.get
-      ("/api/categories")
-      categories.value = data?.member
-       ?? data?.items ?? []
+      const { data } = await api.get("/api/categories")
+      categories.value =
+        data?.["hydra:member"] ??
+        data?.member ??
+        data?.items ??
+        []
     } catch (e) {
-      console.warn
-      ("Erreur chargement categories", e)
+      console.warn("Erreur chargement categories", e)
       categories.value = []
     }
   }
@@ -36,7 +35,7 @@ export function useProduitsCarte() {
   function categorieIriOfProduit(p) {
     const c = p.categorie
     if (!c) return null
-    if (typeof c === "string") return c // IRI
+    if (typeof c === "string") return c
     return c["@id"] ?? (c.id ? `/api/categories/${c.id}` : null)
   }
 
@@ -44,28 +43,25 @@ export function useProduitsCarte() {
     const c = p.categorie
     if (!c) return "—"
 
-    // si l'API renvoie déjà l'objet
-    if (typeof c === "object") return c.nom ?? "—"
+    if (typeof c === "object") {
+      return c.nom ?? "—"
+    }
 
-    // si c'est une IRI
     const found = categories.value.find((x) => x["@id"] === c)
     return found?.nom ?? "—"
   }
 
-  //  Produits filtrés + triés 
-  // =========================
   const produits = computed(() => {
     const list = produitsStore.items ?? []
 
-    // filtre catégorie si sélection
     const filtered = selectedCategorieIri.value
       ? list.filter((p) => categorieIriOfProduit(p) === selectedCategorieIri.value)
       : list
 
-    // tri favoris d'abord, puis nom
     return [...filtered].sort((a, b) => {
       const af = favorisStore.isFav(productIri(a)) ? 1 : 0
       const bf = favorisStore.isFav(productIri(b)) ? 1 : 0
+
       if (af !== bf) return bf - af
 
       return String(a.nom ?? "").localeCompare(String(b.nom ?? ""), "fr", {
@@ -74,8 +70,7 @@ export function useProduitsCarte() {
     })
   })
 
-  // =========================
-  const imageUrlCache = ref({}) // { "/api/images/1": "http://..." }
+  const imageUrlCache = ref({})
 
   function absolutizeUrl(u) {
     if (!u) return null
@@ -93,7 +88,8 @@ export function useProduitsCarte() {
     const url =
       data.url ??
       data.contentUrl ??
-      (data.path ? data.path : null)
+      data.path ??
+      null
 
     const absolute = absolutizeUrl(url)
     imageUrlCache.value[iri] = absolute
@@ -104,13 +100,11 @@ export function useProduitsCarte() {
     const img = p.images?.[0]
     if (!img) return null
 
-    // IRI string => on va chercher le détail puis on renvoie l'URL cachée
     if (typeof img === "string") {
       resolveImageIri(img)
       return imageUrlCache.value[img] ?? null
     }
 
-    // Objet direct
     if (img.url) return absolutizeUrl(img.url)
     if (img.contentUrl) return absolutizeUrl(img.contentUrl)
     if (img.path) return absolutizeUrl(img.path)
@@ -118,14 +112,29 @@ export function useProduitsCarte() {
     return null
   }
 
-  // =========================
   function formatPrice(value) {
     const n = Number(value ?? 0)
     return n.toFixed(2).replace(".", ",")
   }
 
   async function toggleFav(p) {
-    await favorisStore.toggle(productIri(p), p.id)
+    const iri = productIri(p)
+
+    if (!iri) {
+      console.error("IRI produit introuvable", p)
+      return
+    }
+
+    const productId =
+      p?.id ??
+      iri.split("/").pop()
+
+    if (!productId) {
+      console.error("Impossible de déterminer l'id du produit", p)
+      return
+    }
+
+    await favorisStore.toggle(iri, productId)
   }
 
   function addToPanier(p) {
@@ -151,24 +160,17 @@ export function useProduitsCarte() {
   })
 
   return {
-    // stores / state
     produitsStore,
     auth,
     favorisStore,
     panier,
     produits,
-
-    // catégories + filtre
     categories,
     selectedCategorieIri,
-
-    // helpers
     productIri,
     firstImageUrl,
     formatPrice,
     categorieLabel,
-
-    // actions
     toggleFav,
     addToPanier,
     init,

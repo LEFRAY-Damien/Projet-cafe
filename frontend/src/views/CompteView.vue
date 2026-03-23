@@ -24,7 +24,7 @@ const {
   save,
   reset,
 
-  // ✅ suppression
+  //  suppression
   deleting,
   deleteError,
   deleteAccount,
@@ -46,7 +46,7 @@ const {
 } = useMesCommandes()
 
 onMounted(async () => {
-  reset() // 🔥 toujours en mode lecture à l’arrivée
+  reset() 
 
   if (isLoggedIn.value) {
     await auth.init()
@@ -54,7 +54,6 @@ onMounted(async () => {
   }
 })
 
-// ✅ handler suppression (UI)
 async function onDeleteAccount() {
   const ok = confirm(
     "⚠️ Confirmer la suppression du compte ?\n\n" +
@@ -254,11 +253,9 @@ async function onDeleteAccount() {
                     </div>
                   </div>
 
-
                 </div>
               </div>
 
-              <!-- (Tes modals/details si tu les as, inchangés) -->
             </div>
           </div>
         </div>
